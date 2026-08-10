@@ -6,10 +6,10 @@
 <meta name="description" content="Thomas Jefferson's Anatomical Theatre, 1826–1939, reconstructed from the Historic American Buildings Survey.">
 
 <style>
-  :root{ --ink:#22303b; --dim:#6d7d89; --line:#b3ab9c; --ox:#a2432f; }
+  :root{ --ink:#eae6dc; --dim:#a9b4bd; --line:#6b7a88; --ox:#d0705f; }
   *{box-sizing:border-box}
   html,body{height:100%;margin:0;overflow:hidden;color:var(--ink);
-    background:linear-gradient(#e2ded4 0%,#d5cfc3 55%,#c2bbac 100%);
+    background:linear-gradient(#33424f 0%,#475764 55%,#6d757a 100%);
     font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
   .track{letter-spacing:.3em;text-transform:uppercase}
 
@@ -29,12 +29,12 @@
     padding:22px 14px calc(16px + env(safe-area-inset-bottom,0px))}
   .row{display:flex;justify-content:center;gap:7px;flex-wrap:wrap}
   button{font:inherit;font-size:10px;letter-spacing:.2em;text-transform:uppercase;
-    color:var(--ink);background:rgba(255,255,255,.62);border:1px solid var(--line);
+    color:var(--ink);background:rgba(20,30,40,.42);border:1px solid var(--line);
     padding:13px 17px;cursor:pointer;backdrop-filter:blur(6px);transition:.15s}
-  button:hover{border-color:#8d8477}
-  button[aria-pressed="true"]{color:#f4f1e9;background:var(--ink);border-color:var(--ink)}
+  button:hover{border-color:#93a2ad}
+  button[aria-pressed="true"]{color:#22303b;background:var(--ink);border-color:var(--ink)}
   .yr{padding:9px 14px;font-size:9px;color:var(--dim)}
-  .yr[aria-pressed="true"]{color:#f4f1e9;background:var(--ink)}
+  .yr[aria-pressed="true"]{color:#22303b;background:var(--ink)}
   #years.off{opacity:.35;pointer-events:none}
   #ar{border-color:var(--ox);color:var(--ox);box-shadow:inset 2px 0 0 var(--ox)}
   button:focus-visible{outline:2px solid var(--ox);outline-offset:2px}
@@ -43,7 +43,7 @@
     font-size:9px;letter-spacing:.22em;color:var(--dim);pointer-events:none;
     transition:opacity .6s;padding:0 20px}
   #credit{position:fixed;right:14px;bottom:108px;z-index:4;font-size:8px;
-    letter-spacing:.16em;color:#8a8578;text-align:right;line-height:1.9;pointer-events:none}
+    letter-spacing:.16em;color:#8b98a2;text-align:right;line-height:1.9;pointer-events:none}
   @media (max-width:640px){ #credit{display:none} }
 </style>
 
@@ -69,7 +69,9 @@
 <div id="tip" class="track">Drag to turn · pinch to zoom</div>
 
 <div id="credit" class="track">
-  Reconstructed from the<br>Historic American Buildings Survey
+  Reconstructed from the Historic American Buildings<br>
+  Survey measured drawings · other reconstructions,<br>
+  based on photographs, show a different fenestration
 </div>
 
 <footer>
@@ -77,10 +79,8 @@
     <button id="bOut" class="track" aria-pressed="true">Exterior</button>
     <button id="bIn"  class="track" aria-pressed="false">Look inside</button>
   </div>
-  <div class="row" id="years">
-    <button class="yr track" data-yr="1827" aria-pressed="true">1827</button>
-    <button class="yr track" data-yr="1837" aria-pressed="false">1837</button>
-    <button class="yr track" data-yr="1888" aria-pressed="false">1888</button>
+  <div class="row">
+    <button id="bHill" class="track" aria-pressed="false">On its hill</button>
   </div>
 </footer>
 
@@ -89,47 +89,39 @@
 
 <script>
   const mv = document.getElementById('mv');
-  const bOut = document.getElementById('bOut');
-  const bIn = document.getElementById('bIn');
+  const btn = { out:document.getElementById('bOut'),
+                hill:document.getElementById('bHill'),
+                in:document.getElementById('bIn') };
   const tip = document.getElementById('tip');
-  const years = document.getElementById('years');
-  const state = { mode:'out', yr:'1827' };
 
-  const SRC = { '1827':'theatre.glb', '1837':'theatre_1837.glb', '1888':'theatre_1888.glb' };
-  const TIP = {
-    '1827':'As built · ridge-and-furrow roof, Chinese railing',
-    '1837':'Roof replaced with a hipped roof and cupola · cupola form conjectural',
-    '1888':'After the 1886 fire · railing omitted, openings bricked up',
-    'in'  :'The octagonal theatre above · the charnel cut into the hillside below'
+  const VIEW = {
+    out:  { src:'theatre.glb',
+            orbit:'38deg 76deg 46m', target:'0m 4.2m 0m', ar:true,
+            tip:'Drawn from the survey sheets · 44 feet square' },
+    hill: { src:'theatre_hill.glb',
+            orbit:'214deg 72deg 54m', target:'0m 2.0m 0m', ar:false,
+            tip:'The ground fell about 11 feet to the rear · the charnel door sits at the low side' },
+    in:   { src:'theatre_cut.glb',
+            orbit:'34deg 62deg 42m', target:'0m 3.4m 0m', ar:false,
+            tip:'The octagonal theatre above · the charnel cut into the hillside below' }
   };
 
-  function show(){
-    const inside = state.mode === 'in';
-    mv.src = inside ? 'theatre_cut.glb' : SRC[state.yr];
-    mv.cameraOrbit  = inside ? '34deg 62deg 42m' : '38deg 76deg 46m';
-    mv.cameraTarget = inside ? '0m 3.4m 0m'      : '0m 4.2m 0m';
-
-    if (!inside && state.yr === '1827') mv.setAttribute('ar', '');
-    else mv.removeAttribute('ar');
-
-    bOut.setAttribute('aria-pressed', String(!inside));
-    bIn.setAttribute('aria-pressed', String(inside));
-    years.classList.toggle('off', inside);
-    document.querySelectorAll('.yr').forEach(b =>
-      b.setAttribute('aria-pressed', String(b.dataset.yr === state.yr)));
-
-    tip.textContent = inside ? TIP.in : TIP[state.yr];
+  let mode = 'out';
+  function show(next){
+    mode = next;
+    const v = VIEW[mode];
+    mv.src = v.src;
+    mv.cameraOrbit = v.orbit;
+    mv.cameraTarget = v.target;
+    if (v.ar) mv.setAttribute('ar', ''); else mv.removeAttribute('ar');
+    for (const k in btn) btn[k].setAttribute('aria-pressed', String(k === mode));
+    tip.textContent = v.tip;
     tip.style.opacity = 1;
     clearTimeout(show._t);
     show._t = setTimeout(() => { tip.style.opacity = 0; }, 6000);
   }
 
-  bOut.addEventListener('click', () => { state.mode = 'out'; show(); });
-  bIn.addEventListener('click',  () => { state.mode = 'in';  show(); });
-  years.addEventListener('click', e => {
-    const b = e.target.closest('.yr');
-    if (b) { state.yr = b.dataset.yr; state.mode = 'out'; show(); }
-  });
+  for (const k in btn) btn[k].addEventListener('click', () => show(k));
   setTimeout(() => { tip.style.opacity = 0; }, 6000);
 </script>
 </html>

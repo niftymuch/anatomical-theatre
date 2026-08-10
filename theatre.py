@@ -49,9 +49,10 @@ PAL = {
     "glass": (0.737, 0.847, 0.902),
     "dark":  (0.290, 0.251, 0.220),
     "wood":  (0.690, 0.541, 0.361),
+    "plaster": (0.882, 0.867, 0.831),
     "earth": (0.361, 0.455, 0.263),
 }
-TONED = {"brick", "patch", "trim", "stone", "wood", "roof", "earth"}
+TONED = {"brick", "patch", "trim", "stone", "wood", "roof", "earth", "plaster"}
 TEXTURED = {"brick", "patch"}          # these get the brick image
 TILE_U_FT, TILE_V_FT = 4.0, 3.5        # one tile: 4 stretcher+header units
                                        # wide, 16 courses high
@@ -171,7 +172,16 @@ def build(state="1827", cut=False, hill=False):
         w = extrude_polygon(
             Polygon([(-HALF, y_bot), (HALF, y_bot), (HALF, Y_TOP), (-HALF, Y_TOP)], holes), T)
         w.apply_transform(xf)
-        add("brick", name, w)
+        # the inward face of a brick wall was plastered and whitewashed, as the
+        # 1930s museum model of the interior shows
+        out_dir = np.array({"front": (0, 0, 1), "rear": (0, 0, -1),
+                            "left": (-1, 0, 0), "right": (1, 0, 0)}[name], float)
+        inward = w.face_normals @ out_dir < -0.7
+        if inward.any() and (~inward).any():
+            add("plaster", name, w.submesh([np.where(inward)[0]], repair=False)[0])
+            add("brick", name, w.submesh([np.where(~inward)[0]], repair=False)[0])
+        else:
+            add("brick", name, w)
 
         if blocked and name == "rear":
             for x, s in skip:
@@ -193,9 +203,15 @@ def build(state="1827", cut=False, hill=False):
                 g = extrude_polygon(Polygon(lune(x, s, WIN_R - 0.10)), 0.08)
                 g.apply_transform(concatenate_matrices(xf, T4(0, 0, T - 0.34)))
                 add("glass", name, g)
-                for m in (bx(WIN_R * 2 + 0.32, 0.26, 0.36, x, s - 0.10, T - 0.10),
-                          bx(0.14, WIN_R - 0.16, 0.16, x, s + (WIN_R - 0.16) / 2, T - 0.30),
-                          bx(WIN_R * 1.70, 0.14, 0.16, x, s + WIN_R * 0.48, T - 0.30)):
+                pieces = [bx(WIN_R * 2 + 0.32, 0.26, 0.36, x, s - 0.10, T - 0.10)]
+                for k in range(1, 6):                 # five radiating spokes
+                    a = math.pi * k / 6
+                    ln = WIN_R - 0.18
+                    pieces.append(bx(ln, 0.12, 0.16,
+                                     x + math.cos(a) * ln / 2,
+                                     s + math.sin(a) * ln / 2,
+                                     T - 0.28, rot=RZ(a)))
+                for m in pieces:
                     m.apply_transform(xf); add("trim", name, m)
 
         if door:
@@ -289,6 +305,11 @@ def build(state="1827", cut=False, hill=False):
                     continue
                 add("wood", "inner", flat(Polygon(
                     [Vo[k], Vo[(k + 1) % 8], Vi[(k + 1) % 8], Vi[k]]), top - Y_TH, top))
+                a, b = Vi[k], Vi[(k + 1) % 8]        # dark cap along the tier edge
+                ln = math.hypot(b[0] - a[0], b[1] - a[1])
+                add("dark", "inner", bx(ln, 0.30, 0.34, (a[0] + b[0]) / 2, top + 0.15,
+                                        (a[1] + b[1]) / 2,
+                                        rot=RY(-math.atan2(b[1] - a[1], b[0] - a[0]))))
         add("wood", "inner", flat(Polygon(oct_pts(PIT)), 0.4, Y_TH + 0.05))
         add("trim", "inner", bx(5.6, 0.35, 2.6, 0, Y_TH + 3.0, 0))
         for x, z in ((-2.4, -0.9), (2.4, -0.9), (-2.4, 0.9), (2.4, 0.9)):
@@ -403,10 +424,10 @@ def export(B, sides, path, label):
 
         f = tone(m, ao)
         if textured:
-            # walls are triangulated into large fans; per-face shading would
-            # show every triangle edge.  Shade only the small faces -- the
-            # window reveals and wall edges -- and leave the field uniform.
-            f = np.where(m.area_faces > 0.15, 1.0, np.minimum(f, 1.0))
+            # wall polygons triangulate into long slivers: small area, metres
+            # long.  Any per-face shading shows up as dark fans radiating from
+            # the openings, so brick is left completely uniform.
+            f = np.ones(len(f))
         bins = np.digitize(f, [0.55, 0.72, 0.85, 0.94])
         for b in np.unique(bins):
             i = np.where(bins == b)[0]
@@ -424,7 +445,7 @@ if __name__ == "__main__":
     OUT = os.path.dirname(os.path.abspath(__file__)) + "/"   # writes beside this script
     SHELL = {"front", "rear", "left", "right", "core", "roof"}
     CUT = {"rear", "left", "inner", "base", "site"}
-    export(build("1827"), SHELL, OUT + "theatre.glb", "1827 exterior")
-    export(build("1837"), SHELL, OUT + "theatre_1837.glb", "1837 exterior")
-    export(build("1888"), SHELL, OUT + "theatre_1888.glb", "1888 exterior")
-    export(build("1827", cut=True, hill=True), CUT, OUT + "theatre_cut.glb", "1827 cutaway")
+    export(build("1827"), SHELL, OUT + "theatre.glb", "flat, for AR")
+    export(build("1827", hill=True), SHELL | {"base", "site"},
+           OUT + "theatre_hill.glb", "on its hill")
+    export(build("1827", cut=True, hill=True), CUT, OUT + "theatre_cut.glb", "cutaway")
