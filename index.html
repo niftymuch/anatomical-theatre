@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>The Anatomical Theatre · University of Virginia</title>
+<meta name="description" content="Thomas Jefferson's Anatomical Theatre, 1826–1939, reconstructed from the Historic American Buildings Survey.">
+
+<style>
+  :root{ --ink:#0d141b; --line:#2c3d4e; --bone:#ece7db; --dim:#8fa0ad; --ox:#c0524a; }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--ink);color:var(--bone);
+    font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+  .track{letter-spacing:.3em;text-transform:uppercase}
+
+  model-viewer{position:fixed;inset:0;width:100%;height:100%;
+    --poster-color:transparent;
+    --progress-bar-color:var(--ox);
+    --progress-bar-height:2px;}
+
+  header{position:fixed;top:0;left:0;right:0;z-index:5;pointer-events:none;
+    padding:calc(16px + env(safe-area-inset-top,0px)) 18px 26px;
+    background:linear-gradient(rgba(13,20,27,.72),transparent)}
+  header h1{font-size:12px;font-weight:600;margin:0}
+  header p{font-size:9px;color:var(--dim);margin:6px 0 0;letter-spacing:.22em}
+
+  footer{position:fixed;left:0;right:0;bottom:0;z-index:5;
+    display:flex;justify-content:center;gap:8px;flex-wrap:wrap;
+    padding:22px 14px calc(16px + env(safe-area-inset-bottom,0px));
+    background:linear-gradient(transparent,rgba(13,20,27,.8) 40%)}
+  button{font:inherit;font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--bone);background:rgba(13,20,27,.55);border:1px solid var(--line);
+    padding:13px 17px;cursor:pointer;backdrop-filter:blur(8px);transition:.15s}
+  button:hover{border-color:#4a6076}
+  button[aria-pressed="true"]{color:var(--ink);background:var(--bone);border-color:var(--bone)}
+  #ar{border-color:var(--ox);box-shadow:inset 2px 0 0 var(--ox)}
+  button:focus-visible{outline:2px solid var(--ox);outline-offset:2px}
+
+  #tip{position:fixed;left:0;right:0;bottom:78px;z-index:4;text-align:center;
+    font-size:9px;letter-spacing:.22em;color:#6b7a86;pointer-events:none;
+    transition:opacity .6s;padding:0 20px}
+
+  #credit{position:fixed;right:14px;bottom:74px;z-index:4;font-size:8px;letter-spacing:.16em;
+    color:#4f5d68;text-align:right;line-height:1.9;pointer-events:none}
+  @media (max-width:640px){ #credit{display:none} }
+</style>
+
+<model-viewer id="mv"
+  src="theatre.glb"
+  ios-src="theatre.usdz"
+  alt="Thomas Jefferson's Anatomical Theatre, a 44-foot square brick building of two storeys with half-round windows and a railed parapet."
+  ar ar-modes="webxr scene-viewer quick-look" ar-scale="fixed" ar-placement="floor"
+  camera-controls touch-action="pan-y" interaction-prompt="none"
+  shadow-intensity="1.4" shadow-softness="0.8" exposure="1.05"
+  environment-image="neutral"
+  camera-orbit="38deg 74deg 46m" camera-target="0m 4.2m 0m"
+  min-camera-orbit="auto 12deg 6m" max-camera-orbit="auto 91deg 110m"
+  min-field-of-view="18deg" max-field-of-view="55deg">
+  <button id="ar" slot="ar-button" class="track">View at full size</button>
+</model-viewer>
+
+<header>
+  <h1 class="track">The Anatomical Theatre</h1>
+  <p class="track">Thomas Jefferson · 1826–1939 · 44 feet square</p>
+</header>
+
+<div id="tip" class="track">Drag to turn · pinch to zoom</div>
+
+<div id="credit" class="track">
+  Reconstructed from the<br>Historic American Buildings Survey
+</div>
+
+<footer>
+  <button id="bOut" class="track" aria-pressed="true">Exterior</button>
+  <button id="bIn"  class="track" aria-pressed="false">Look inside</button>
+</footer>
+
+<script type="module"
+  src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.3.1/model-viewer.min.js"></script>
+
+<script>
+  const mv = document.getElementById('mv');
+  const bOut = document.getElementById('bOut');
+  const bIn  = document.getElementById('bIn');
+  const tip  = document.getElementById('tip');
+
+  const VIEWS = {
+    out: { src:'theatre.glb',     ios:'theatre.usdz',
+           orbit:'38deg 74deg 46m', target:'0m 4.2m 0m',
+           tip:'Drag to turn · pinch to zoom' },
+    in:  { src:'theatre_cut.glb', ios:'theatre_cut.usdz',
+           orbit:'32deg 58deg 30m', target:'0m 5.4m 0m',
+           tip:'The octagonal theatre · dissecting table at the centre' }
+  };
+
+  function show(which){
+    const v = VIEWS[which];
+    mv.src = v.src;
+    mv.setAttribute('ios-src', v.ios);
+    mv.cameraOrbit = v.orbit;
+    mv.cameraTarget = v.target;
+    bOut.setAttribute('aria-pressed', String(which === 'out'));
+    bIn.setAttribute('aria-pressed',  String(which === 'in'));
+    tip.textContent = v.tip;
+    tip.style.opacity = 1;
+    clearTimeout(show._t);
+    show._t = setTimeout(() => { tip.style.opacity = 0; }, 5000);
+  }
+
+  bOut.addEventListener('click', () => show('out'));
+  bIn.addEventListener('click',  () => show('in'));
+  setTimeout(() => { tip.style.opacity = 0; }, 5000);
+</script>
+</html>
