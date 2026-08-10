@@ -378,13 +378,9 @@ def build(state="1827", cut=False, hill=False):
         # prepared, with the museum on the floor above.
         add("stone", "base", bx(44, 0.8, 44, 0, Y_CHARNEL - 0.4, 0))
         add("plaster", "base", bx(41, 0.5, 41, 0, Y_MUS - 1.25, 0))
-        # tagged by elevation so the cutaway drops the same two faces the
-        # storeys above lose, opening the charnel to view
-        for side, x, z, w_, d_ in (("left", -20.75, 0, 2.5, 44),
-                                   ("right", 20.75, 0, 2.5, 44),
-                                   ("rear", 0, -20.75, 44, 2.5),
-                                   ("front", 0, 20.75, 44, 2.5)):
-            add("stone", side, bx(w_, 12.3, d_, x, Y_CHARNEL + 6.15, z))
+        # No separate basement perimeter walls: when hill is set the exterior
+        # walls already extend down to the footing, and a second wall in the
+        # same plane z-fights into a hatched mess.
         for x in (-9, 9):                                     # piers carrying the floor above
             for z in (-9, 9):
                 add("brick", "base", bx(2.2, 12.3, 2.2, x, Y_CHARNEL + 6.15, z))
@@ -514,9 +510,9 @@ if __name__ == "__main__":
     OUT = os.path.dirname(os.path.abspath(__file__)) + "/"   # writes beside this script
     SHELL = {"front", "rear", "left", "right", "core", "roof"}
     CUT = {"rear", "left", "inner", "base", "site"}   # "props" left out
-    export(build("1827"), SHELL, OUT + "theatre.glb", "flat, for AR")
+    export(build("1827"), SHELL, OUT + "theatre.glb", "flat, for AR", bake=False)
     export(build("1827", hill=True), SHELL | {"base", "site"},
-           OUT + "theatre_hill.glb", "on its hill")
+           OUT + "theatre_hill.glb", "on its hill", bake=False)
     # the cutaway is lit for real in the browser, so nothing is baked into it
     export(build("1827", cut=True, hill=True), CUT, OUT + "theatre_cut.glb",
            "cutaway", bake=False)

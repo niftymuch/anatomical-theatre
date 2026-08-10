@@ -18,11 +18,10 @@
     font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
   .track{letter-spacing:.34em;text-transform:uppercase}
 
-  #three{position:fixed;inset:0;width:100%;height:100%;display:none;z-index:1}
-  #three.on{display:block}
-  model-viewer.off{visibility:hidden;pointer-events:none}
-  model-viewer{position:fixed;inset:0;width:100%;height:100%;background:transparent;
-    --poster-color:transparent;--progress-bar-color:var(--oxblood);--progress-bar-height:2px}
+  #three{position:fixed;inset:0;width:100%;height:100%;z-index:1;display:block}
+  /* kept in the page purely to launch AR; never seen */
+  model-viewer{position:fixed;inset:0;width:100%;height:100%;z-index:0;
+    opacity:0;pointer-events:none;--poster-color:transparent}
 
   /* sheet border, after the HABS drawing frame */
   #frame{position:fixed;inset:14px;border:1px solid var(--line);pointer-events:none;z-index:5}
@@ -75,7 +74,6 @@
   camera-orbit="38deg 76deg 46m" camera-target="0m 4.2m 0m"
   min-camera-orbit="auto 8deg 5m" max-camera-orbit="auto 91deg 110m"
   min-field-of-view="18deg" max-field-of-view="55deg">
-  <button id="ar" slot="ar-button" class="track">View at full size</button>
 </model-viewer>
 
 <div id="frame"></div>
@@ -96,6 +94,7 @@
   <button id="bOut" class="track" aria-pressed="true">Exterior</button>
   <button id="bHill" class="track" aria-pressed="false">On its hill</button>
   <button id="bIn" class="track" aria-pressed="false">Look inside</button>
+  <button id="ar" class="track" hidden>View at full size</button>
 </footer>
 
 <div id="titleblock">
@@ -115,62 +114,42 @@
 <script type="module"
   src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.3.1/model-viewer.min.js"></script>
 
-<script>
+<script type="module">
   const mv = document.getElementById('mv');
-  const cv = document.getElementById('three');
   const hint = document.getElementById('hint');
+  const arBtn = document.getElementById('ar');
   const btn = { out:document.getElementById('bOut'),
                 hill:document.getElementById('bHill'),
                 in:document.getElementById('bIn') };
 
-  const VIEW = {
-    out:  { src:'theatre.glb',      orbit:'38deg 76deg 46m', target:'0m 4.2m 0m', ar:true,
-            hint:'Drawn from the survey sheets · 44 feet square' },
-    hill: { src:'theatre_hill.glb', orbit:'196deg 74deg 56m', target:'0m 1.6m 0m', ar:false,
-            hint:'The ground fell about 11 feet to the rear · the charnel door sits at the low side' },
-    in:   { hint:'Theatre above · museum below · the charnel occupying the basement' }
+  const HINT = {
+    out:  'Drawn from the survey sheets · 44 feet square',
+    hill: 'The ground fell about 11 feet to the rear · the charnel door sits at the low side',
+    in:   'Theatre above · museum below · the charnel occupying the basement'
   };
 
-  let mode = 'out', interior = null;
+  let mode = 'out';
+  const viewer = (await import('./viewer.js')).start(document.getElementById('three'));
+  viewer.setActive(true);
+  viewer.show('out');
 
-  function frame(){
-    const v = VIEW[mode];
-    if (!v.orbit) return;
-    mv.setAttribute('camera-orbit', v.orbit);
-    mv.setAttribute('camera-target', v.target);
-  }
-
-  async function show(next){
+  function show(next){
     mode = next;
-    const v = VIEW[mode];
-    const inside = mode === 'in';
-
-    mv.classList.toggle('off', inside);
-    cv.classList.toggle('on', inside);
-
-    if (!inside){
-      mv.src = v.src;
-      frame();
-      if (v.ar) mv.setAttribute('ar', ''); else mv.removeAttribute('ar');
-    } else {
-      if (!interior){
-        hint.textContent = 'Loading the interior…';
-        hint.style.opacity = 1;
-        interior = (await import('./interior.js')).start(cv);
-      }
-      interior.resume();
-    }
-    if (interior) interior.setActive(inside);
-
+    viewer.show(mode);
     for (const k in btn) btn[k].setAttribute('aria-pressed', String(k === mode));
-    hint.textContent = v.hint;
+    arBtn.hidden = !(mode === 'out' && mv.canActivateAR);
+    hint.textContent = HINT[mode];
     hint.style.opacity = 1;
     clearTimeout(show._t);
     show._t = setTimeout(() => { hint.style.opacity = 0; }, 6000);
   }
 
-  mv.addEventListener('load', () => frame());
   for (const k in btn) btn[k].addEventListener('click', () => show(k));
+
+  // AR is the flat model only; model-viewer hands it to Quick Look or Scene Viewer
+  arBtn.addEventListener('click', () => mv.activateAR());
+  mv.addEventListener('load', () => { arBtn.hidden = !(mode === 'out' && mv.canActivateAR); });
+
   setTimeout(() => { hint.style.opacity = 0; }, 6000);
 </script>
 </html>
