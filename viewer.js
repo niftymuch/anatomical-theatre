@@ -95,7 +95,13 @@ export function start(canvas) {
       if (!m) return;
       m.roughness = m.transparent ? 0.25 : 0.94;
       m.metalness = 0;
-      if (m.map) m.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      if (m.map) {
+        m.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        m.map.generateMipmaps = true;
+        m.map.minFilter = THREE.LinearMipmapLinearFilter;
+        m.map.magFilter = THREE.LinearFilter;
+        m.map.needsUpdate = true;
+      }
     });
   }
 

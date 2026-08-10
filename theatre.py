@@ -203,8 +203,8 @@ def build(state="1827", cut=False, hill=False):
                     continue
                 ring = Polygon(arc(x, s, WIN_R + 0.16, 0, math.pi)
                                + arc(x, s, WIN_R - 0.14, math.pi, 0))
-                r = extrude_polygon(ring, 0.10)
-                r.apply_transform(concatenate_matrices(xf, T4(0, 0, T - 0.10)))
+                r = extrude_polygon(ring, 0.30)
+                r.apply_transform(concatenate_matrices(xf, T4(0, 0, T - 0.08)))
                 add("trim", name, r)
                 g = extrude_polygon(Polygon(lune(x, s, WIN_R - 0.10)), 0.08)
                 g.apply_transform(concatenate_matrices(xf, T4(0, 0, T - 0.34)))
@@ -228,7 +228,7 @@ def build(state="1827", cut=False, hill=False):
 
     # ---- plinth, cornice with dentils, railing -----------------------
     def face_pieces():
-        out = [("stone", bx(44.9, 1.8, 0.5, 0, -0.1, HALF + 0.24))]
+        out = [("stone", bx(44.9, 1.8, 1.1, 0, -0.1, HALF + 0.05))]
         L = 44 + 2 * EAVE
         y = Y_TOP
         for h, p in ((0.55, 0.45), (0.75, 1.05), (0.87, 1.4)):
@@ -383,6 +383,7 @@ def build(state="1827", cut=False, hill=False):
         # accounts place it in the basement, where cadavers were stored and
         # prepared, with the museum on the floor above.
         add("stone", "base", bx(44, 0.8, 44, 0, Y_CHARNEL - 0.4, 0))
+        add("wood", "base", bx(41, 0.35, 41, 0, Y_CHARNEL + 0.175, 0))
         add("plaster", "base", bx(41, 0.5, 41, 0, Y_MUS - 1.25, 0))
         # No separate basement perimeter walls: when hill is set the exterior
         # walls already extend down to the footing, and a second wall in the
