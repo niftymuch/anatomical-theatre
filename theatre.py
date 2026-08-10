@@ -15,8 +15,9 @@ Outputs
   theatre_1888.glb      web only
   theatre_cut.glb       1827 cutaway on its hillside, charnel exposed, web only
 """
-import math
+import math, os
 import numpy as np
+from PIL import Image
 import trimesh
 from trimesh.creation import extrude_polygon, box, cone, cylinder
 from trimesh.transformations import rotation_matrix, translation_matrix, concatenate_matrices
@@ -50,6 +51,32 @@ PAL = {
     "earth": (0.404, 0.400, 0.322),
 }
 TONED = {"brick", "patch", "trim", "stone", "wood", "roof", "earth"}
+TEXTURED = {"brick", "patch"}          # these get the brick image
+TILE_FT = 3.5                          # one texture tile = 3'-6", 16 courses
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+def _tex(name):
+    try:
+        return Image.open(os.path.join(_HERE, name)).convert("RGB")
+    except FileNotFoundError:
+        return None
+BRICK_MAP = _tex("brick_diffuse.png")   # run brick_texture.py to regenerate
+BRICK_NRM = _tex("brick_normal.png")
+
+
+def planar_uv(mesh, tile_m):
+    """Box-project UVs from world position, per face, so brick coursing runs
+    horizontally on every wall without unwrapping anything."""
+    mesh.unmerge_vertices()                     # each face gets its own vertices
+    f = mesh.faces
+    n = mesh.face_normals
+    dom = np.argmax(np.abs(n), axis=1)[:, None]
+    c = mesh.vertices[f]                        # (F, 3, 3)
+    u = np.where(dom == 0, c[:, :, 2], c[:, :, 0])
+    v = np.where(dom == 1, c[:, :, 2], c[:, :, 1])
+    uv = np.zeros((len(mesh.vertices), 2))
+    uv[f] = np.stack([u / tile_m, v / tile_m], axis=-1)
+    return uv
 
 
 def T4(x=0.0, y=0.0, z=0.0): return translation_matrix([x, y, z])
@@ -317,20 +344,33 @@ def export(B, sides, path, label):
         base = np.array(PAL[mat])
         alpha = 150 if mat == "glass" else 255
 
+        textured = mat in TEXTURED and BRICK_MAP is not None
+
         def emit(sub, col, name):
             nonlocal tris
+            uv = None
+            if textured:
+                uv = planar_uv(sub, TILE_FT * FT)
+                # with an image the factor becomes a neutral tint, so the
+                # brick colour itself lives in brick_texture.py
+                k = float(np.mean(col / np.maximum(np.array(PAL[mat]), 1e-6)))
+                col = np.clip(np.array([k, k, k]), 0, 1)
+            kw = dict(name=name,
+                      baseColorFactor=[int(v * 255) for v in col] + [alpha],
+                      metallicFactor=0.0,
+                      roughnessFactor=0.35 if mat == "glass" else 0.88,
+                      alphaMode="BLEND" if mat == "glass" else "OPAQUE",
+                      doubleSided=True)
+            if textured:
+                kw["baseColorTexture"] = BRICK_MAP
+                if BRICK_NRM is not None:
+                    kw["normalTexture"] = BRICK_NRM
             sub.visual = trimesh.visual.TextureVisuals(
-                material=trimesh.visual.material.PBRMaterial(
-                    name=name,
-                    baseColorFactor=[int(v * 255) for v in col] + [alpha],
-                    metallicFactor=0.0,
-                    roughnessFactor=0.35 if mat == "glass" else 0.88,
-                    alphaMode="BLEND" if mat == "glass" else "OPAQUE",
-                    doubleSided=True))
+                uv=uv, material=trimesh.visual.material.PBRMaterial(**kw))
             scene.add_geometry(sub, geom_name=f"{name}_{len(scene.geometry)}")
             tris += len(sub.faces)
 
-        if mat in TONED:
+        if mat in TONED and not textured:
             f = tone(m)
             bins = np.digitize(f, [0.80, 0.94, 1.00, 1.03])
             for b in np.unique(bins):
@@ -348,7 +388,8 @@ def export(B, sides, path, label):
 
 
 if __name__ == "__main__":
-    OUT = "/mnt/user-data/outputs/theatre-site/"
+    import os
+    OUT = os.path.dirname(os.path.abspath(__file__)) + "/"   # writes beside this script
     SHELL = {"front", "rear", "left", "right", "core", "roof"}
     CUT = {"rear", "left", "inner", "base", "site"}
     export(build("1827"), SHELL, OUT + "theatre.glb", "1827 exterior")
