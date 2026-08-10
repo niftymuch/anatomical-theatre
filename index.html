@@ -6,45 +6,44 @@
 <meta name="description" content="Thomas Jefferson's Anatomical Theatre, 1826–1939, reconstructed from the Historic American Buildings Survey.">
 
 <style>
-  :root{ --ink:#0d141b; --line:#2c3d4e; --bone:#ece7db; --dim:#8fa0ad; --ox:#c0524a; }
+  :root{ --ink:#22303b; --dim:#6d7d89; --line:#b3ab9c; --ox:#a2432f; }
   *{box-sizing:border-box}
-  html,body{height:100%;margin:0;background:var(--ink);color:var(--bone);
-    font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+  html,body{height:100%;margin:0;overflow:hidden;color:var(--ink);
+    background:linear-gradient(#e2ded4 0%,#d5cfc3 55%,#c2bbac 100%);
+    font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
   .track{letter-spacing:.3em;text-transform:uppercase}
 
   model-viewer{position:fixed;inset:0;width:100%;height:100%;
+    background:transparent;
     --poster-color:transparent;
     --progress-bar-color:var(--ox);
-    --progress-bar-height:2px;}
+    --progress-bar-height:2px}
 
   header{position:fixed;top:0;left:0;right:0;z-index:5;pointer-events:none;
-    padding:calc(16px + env(safe-area-inset-top,0px)) 18px 26px;
-    background:linear-gradient(rgba(13,20,27,.72),transparent)}
+    padding:calc(16px + env(safe-area-inset-top,0px)) 18px 26px}
   header h1{font-size:12px;font-weight:600;margin:0}
   header p{font-size:9px;color:var(--dim);margin:6px 0 0;letter-spacing:.22em}
 
   footer{position:fixed;left:0;right:0;bottom:0;z-index:5;
     display:flex;flex-direction:column;align-items:center;gap:7px;
-    padding:22px 14px calc(16px + env(safe-area-inset-bottom,0px));
-    background:linear-gradient(transparent,rgba(13,20,27,.8) 40%)}
+    padding:22px 14px calc(16px + env(safe-area-inset-bottom,0px))}
   .row{display:flex;justify-content:center;gap:7px;flex-wrap:wrap}
-  .yr{padding:9px 14px;font-size:9px;color:var(--dim)}
-  .yr[aria-pressed="true"]{color:var(--ink);background:var(--bone)}
-  #years.off{opacity:.35;pointer-events:none}
   button{font:inherit;font-size:10px;letter-spacing:.2em;text-transform:uppercase;
-    color:var(--bone);background:rgba(13,20,27,.55);border:1px solid var(--line);
-    padding:13px 17px;cursor:pointer;backdrop-filter:blur(8px);transition:.15s}
-  button:hover{border-color:#4a6076}
-  button[aria-pressed="true"]{color:var(--ink);background:var(--bone);border-color:var(--bone)}
-  #ar{border-color:var(--ox);box-shadow:inset 2px 0 0 var(--ox)}
+    color:var(--ink);background:rgba(255,255,255,.62);border:1px solid var(--line);
+    padding:13px 17px;cursor:pointer;backdrop-filter:blur(6px);transition:.15s}
+  button:hover{border-color:#8d8477}
+  button[aria-pressed="true"]{color:#f4f1e9;background:var(--ink);border-color:var(--ink)}
+  .yr{padding:9px 14px;font-size:9px;color:var(--dim)}
+  .yr[aria-pressed="true"]{color:#f4f1e9;background:var(--ink)}
+  #years.off{opacity:.35;pointer-events:none}
+  #ar{border-color:var(--ox);color:var(--ox);box-shadow:inset 2px 0 0 var(--ox)}
   button:focus-visible{outline:2px solid var(--ox);outline-offset:2px}
 
   #tip{position:fixed;left:0;right:0;bottom:112px;z-index:4;text-align:center;
-    font-size:9px;letter-spacing:.22em;color:#6b7a86;pointer-events:none;
+    font-size:9px;letter-spacing:.22em;color:var(--dim);pointer-events:none;
     transition:opacity .6s;padding:0 20px}
-
-  #credit{position:fixed;right:14px;bottom:108px;z-index:4;font-size:8px;letter-spacing:.16em;
-    color:#4f5d68;text-align:right;line-height:1.9;pointer-events:none}
+  #credit{position:fixed;right:14px;bottom:108px;z-index:4;font-size:8px;
+    letter-spacing:.16em;color:#8a8578;text-align:right;line-height:1.9;pointer-events:none}
   @media (max-width:640px){ #credit{display:none} }
 </style>
 
@@ -54,9 +53,9 @@
   alt="Thomas Jefferson's Anatomical Theatre, a 44-foot square brick building of two storeys with half-round windows and a railed parapet."
   ar ar-modes="webxr scene-viewer quick-look" ar-scale="fixed" ar-placement="floor"
   camera-controls touch-action="pan-y" interaction-prompt="none"
-  shadow-intensity="1.4" shadow-softness="0.8" exposure="1.05"
-  environment-image="neutral"
-  camera-orbit="38deg 74deg 46m" camera-target="0m 4.2m 0m"
+  shadow-intensity="1.9" shadow-softness="0.55" exposure="0.92"
+  environment-image="neutral" tone-mapping="commerce"
+  camera-orbit="38deg 76deg 46m" camera-target="0m 4.2m 0m"
   min-camera-orbit="auto 8deg 5m" max-camera-orbit="auto 91deg 110m"
   min-field-of-view="18deg" max-field-of-view="55deg">
   <button id="ar" slot="ar-button" class="track">View at full size</button>
@@ -91,15 +90,12 @@
 <script>
   const mv = document.getElementById('mv');
   const bOut = document.getElementById('bOut');
-  const bIn  = document.getElementById('bIn');
-  const tip  = document.getElementById('tip');
-
+  const bIn = document.getElementById('bIn');
+  const tip = document.getElementById('tip');
   const years = document.getElementById('years');
   const state = { mode:'out', yr:'1827' };
 
-  const SRC = {
-    '1827':'theatre.glb', '1837':'theatre_1837.glb', '1888':'theatre_1888.glb'
-  };
+  const SRC = { '1827':'theatre.glb', '1837':'theatre_1837.glb', '1888':'theatre_1888.glb' };
   const TIP = {
     '1827':'As built · ridge-and-furrow roof, Chinese railing',
     '1837':'Roof replaced with a hipped roof and cupola · cupola form conjectural',
@@ -110,16 +106,14 @@
   function show(){
     const inside = state.mode === 'in';
     mv.src = inside ? 'theatre_cut.glb' : SRC[state.yr];
-    mv.cameraOrbit  = inside ? '34deg 62deg 42m' : '38deg 74deg 46m';
+    mv.cameraOrbit  = inside ? '34deg 62deg 42m' : '38deg 76deg 46m';
     mv.cameraTarget = inside ? '0m 3.4m 0m'      : '0m 4.2m 0m';
 
-    // AR is the 1827 exterior only — the cutaway sits below grade and the
-    // later states have no USDZ
     if (!inside && state.yr === '1827') mv.setAttribute('ar', '');
     else mv.removeAttribute('ar');
 
     bOut.setAttribute('aria-pressed', String(!inside));
-    bIn.setAttribute('aria-pressed',  String(inside));
+    bIn.setAttribute('aria-pressed', String(inside));
     years.classList.toggle('off', inside);
     document.querySelectorAll('.yr').forEach(b =>
       b.setAttribute('aria-pressed', String(b.dataset.yr === state.yr)));

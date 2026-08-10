@@ -17,6 +17,7 @@ Outputs
 """
 import math, os
 import numpy as np
+from scipy.spatial import cKDTree
 from PIL import Image
 import trimesh
 from trimesh.creation import extrude_polygon, box, cone, cylinder
@@ -42,7 +43,7 @@ GROUND = -1.0                       # datum: front grade becomes y = 0
 PAL = {
     "brick": (0.658, 0.337, 0.247),
     "patch": (0.600, 0.330, 0.262),
-    "trim":  (0.937, 0.914, 0.859),
+    "trim":  (0.898, 0.871, 0.804),
     "stone": (0.612, 0.596, 0.541),
     "roof":  (0.490, 0.518, 0.471),
     "glass": (0.737, 0.847, 0.902),
@@ -52,7 +53,8 @@ PAL = {
 }
 TONED = {"brick", "patch", "trim", "stone", "wood", "roof", "earth"}
 TEXTURED = {"brick", "patch"}          # these get the brick image
-TILE_FT = 3.5                          # one texture tile = 3'-6", 16 courses
+TILE_U_FT, TILE_V_FT = 4.0, 3.5        # one tile: 4 stretcher+header units
+                                       # wide, 16 courses high
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 def _tex(name):
@@ -64,7 +66,7 @@ BRICK_MAP = _tex("brick_diffuse.png")   # run brick_texture.py to regenerate
 BRICK_NRM = _tex("brick_normal.png")
 
 
-def planar_uv(mesh, tile_m):
+def planar_uv(mesh, tile_u, tile_v):
     """Box-project UVs from world position, per face, so brick coursing runs
     horizontally on every wall without unwrapping anything."""
     mesh.unmerge_vertices()                     # each face gets its own vertices
@@ -75,8 +77,29 @@ def planar_uv(mesh, tile_m):
     u = np.where(dom == 0, c[:, :, 2], c[:, :, 0])
     v = np.where(dom == 1, c[:, :, 2], c[:, :, 1])
     uv = np.zeros((len(mesh.vertices), 2))
-    uv[f] = np.stack([u / tile_m, v / tile_m], axis=-1)
+    uv[f] = np.stack([u / tile_u, v / tile_v], axis=-1)
     return uv
+
+
+def ambient(mesh, radius=1.7, k=56, floor=0.34):
+    """Point-based ambient occlusion: how much of each face's hemisphere is
+    blocked by nearby geometry.  Darkens window reveals, inside corners and
+    the underside of the cornice, which is most of what makes a render read
+    as a building rather than a coloured box."""
+    C, N, A = mesh.triangles_center, mesh.face_normals, mesh.area_faces
+    dist, idx = cKDTree(C).query(C, k=min(k, len(C)))
+    d = C[idx] - C[:, None, :]                      # (F, k, 3)
+    r2 = np.maximum((d ** 2).sum(-1), 1e-8)
+    u = d / np.sqrt(r2)[..., None]
+    cos_i = np.maximum(0.0, np.einsum("fkj,fj->fk", u, N))
+    cos_j = np.maximum(0.0, -np.einsum("fkj,fkj->fk", u, N[idx]))
+    w = A[idx] * cos_i * cos_j / (np.pi * r2 + A[idx])
+    w[dist > radius] = 0.0
+    w[:, 0] = 0.0                                   # the face itself
+    # a single value per face is only meaningful on small faces; a wall
+    # triangle spans metres, so damp occlusion out as area grows
+    damp = np.clip(0.30 / np.maximum(A, 1e-9), 0.0, 1.0)
+    return np.clip(1.0 - w.sum(1) * damp, floor, 1.0)
 
 
 def T4(x=0.0, y=0.0, z=0.0): return translation_matrix([x, y, z])
@@ -321,40 +344,44 @@ def build(state="1827", cut=False, hill=False):
 
 
 # ================================================= tonal variation + export
-def tone(mesh):
+def tone(mesh, ao):
     n, c = mesh.face_normals, mesh.triangles_center
-    f = np.ones(len(n))
-    f *= np.where(n[:, 1] < -0.3, 0.70, 1.0)      # undersides in shade
-    f *= np.where(n[:, 1] > 0.70, 1.05, 1.0)      # tops catch the light
-    f *= 0.90 + 0.10 * np.clip(c[:, 1] / 1.8, 0, 1)   # weathering near grade
-    f *= np.random.uniform(0.955, 1.045, len(n))  # handmade brick variation
+    f = ao.copy()
+    f *= np.where(n[:, 1] < -0.3, 0.86, 1.0)          # undersides in shade
+    f *= np.where(n[:, 1] > 0.70, 1.04, 1.0)          # tops catch the light
+    f *= 0.93 + 0.07 * np.clip(c[:, 1] / 1.8, 0, 1)   # weathering near grade
     return f
 
 
 def export(B, sides, path, label):
-    scene, tris, groups = trimesh.Scene(), 0, {}
+    groups = {}
     for mat, side, mesh in B:
         if side in sides:
             groups.setdefault(mat, []).append(mesh)
 
+    parts = []
     for mat, meshes in groups.items():
         m = trimesh.util.concatenate([x.copy() for x in meshes])
         m.apply_translation([0, -GROUND, 0])
         m.apply_scale(FT)
+        parts.append((mat, m))
+
+    world = trimesh.util.concatenate([m for _, m in parts])
+    assert len(world.faces) == sum(len(m.faces) for _, m in parts)
+    ao_all = ambient(world)
+
+    scene, tris, cursor = trimesh.Scene(), 0, 0
+    for mat, m in parts:
+        n = len(m.faces)
+        ao = ao_all[cursor:cursor + n]; cursor += n
         base = np.array(PAL[mat])
         alpha = 150 if mat == "glass" else 255
-
         textured = mat in TEXTURED and BRICK_MAP is not None
 
-        def emit(sub, col, name):
+        def emit(sub, k, name):
             nonlocal tris
-            uv = None
-            if textured:
-                uv = planar_uv(sub, TILE_FT * FT)
-                # with an image the factor becomes a neutral tint, so the
-                # brick colour itself lives in brick_texture.py
-                k = float(np.mean(col / np.maximum(np.array(PAL[mat]), 1e-6)))
-                col = np.clip(np.array([k, k, k]), 0, 1)
+            uv = planar_uv(sub, TILE_U_FT * FT, TILE_V_FT * FT) if textured else None
+            col = np.clip((np.array([k, k, k]) if textured else base * k), 0, 1)
             kw = dict(name=name,
                       baseColorFactor=[int(v * 255) for v in col] + [alpha],
                       metallicFactor=0.0,
@@ -370,21 +397,26 @@ def export(B, sides, path, label):
             scene.add_geometry(sub, geom_name=f"{name}_{len(scene.geometry)}")
             tris += len(sub.faces)
 
-        if mat in TONED and not textured:
-            f = tone(m)
-            bins = np.digitize(f, [0.80, 0.94, 1.00, 1.03])
-            for b in np.unique(bins):
-                idx = np.where(bins == b)[0]
-                sub = m.submesh([idx], repair=False)[0]
-                emit(sub, np.clip(base * float(np.mean(f[idx])), 0, 1), f"{mat}{b}")
-        else:
-            emit(m, base, mat)
+        if mat == "glass":
+            emit(m, 1.0, mat)
+            continue
+
+        f = tone(m, ao)
+        if textured:
+            # walls are triangulated into large fans; per-face shading would
+            # show every triangle edge.  Shade only the small faces -- the
+            # window reveals and wall edges -- and leave the field uniform.
+            f = np.where(m.area_faces > 0.15, 1.0, np.minimum(f, 1.0))
+        bins = np.digitize(f, [0.55, 0.72, 0.85, 0.94])
+        for b in np.unique(bins):
+            i = np.where(bins == b)[0]
+            emit(m.submesh([i], repair=False)[0], float(np.mean(f[i])), f"{mat}{b}")
 
     scene.export(path)
     bb = scene.bounds
     print(f"{label:14s} {path.split('/')[-1]:20s} tris={tris:6d}  "
           f"{bb[1][0]-bb[0][0]:5.2f} x {bb[1][2]-bb[0][2]:5.2f} x {bb[1][1]-bb[0][1]:5.2f} m"
-          f"   floor y={bb[0][1]:+.2f}")
+          f"   floor y={bb[0][1]:+.2f}  ao {ao_all.min():.2f}-{ao_all.max():.2f}")
 
 
 if __name__ == "__main__":
