@@ -176,7 +176,7 @@ def build(state="1827", cut=False, hill=False):
         # 1930s museum model of the interior shows
         out_dir = np.array({"front": (0, 0, 1), "rear": (0, 0, -1),
                             "left": (-1, 0, 0), "right": (1, 0, 0)}[name], float)
-        inward = w.face_normals @ out_dir < -0.7
+        inward = w.face_normals @ out_dir > 0.7   # normals point out of the solid
         if inward.any() and (~inward).any():
             add("plaster", name, w.submesh([np.where(inward)[0]], repair=False)[0])
             add("brick", name, w.submesh([np.where(~inward)[0]], repair=False)[0])
@@ -312,10 +312,30 @@ def build(state="1827", cut=False, hill=False):
                                         rot=RY(-math.atan2(b[1] - a[1], b[0] - a[0]))))
         add("wood", "inner", flat(Polygon(oct_pts(PIT)), 0.4, Y_TH + 0.05))
         add("trim", "inner", bx(5.6, 0.35, 2.6, 0, Y_TH + 3.0, 0))
+        add("wood", "props", bx(2.6, 0.28, 1.4, 0, Y_TH + 2.6, -4.0))   # instrument stand
+        for dx in (-1.1, 1.1):
+            add("wood", "props", bx(0.22, 2.5, 0.22, dx, Y_TH + 1.3, -4.0))
         for x, z in ((-2.4, -0.9), (2.4, -0.9), (-2.4, 0.9), (2.4, 0.9)):
             add("trim", "inner", bx(0.22, 2.9, 0.22, x, Y_TH + 1.45, z))
         for x, z in ((-6.25, -7.375), (6.25, -7.375), (-6.25, 7.375), (6.25, 7.375)):
             add("trim", "inner", bx(0.5, 9.83, 0.5, x, 4.915, z))
+        for z in (-13.5, 13.5):                # specimen cases along the museum walls
+            for x in (-13, 0, 13):
+                add("wood", "props", bx(7.0, 0.35, 2.4, x, 3.1, z))
+                for dx in (-3.2, 3.2):
+                    for dz in (-1.0, 1.0):
+                        add("wood", "props", bx(0.28, 3.0, 0.28, x + dx, 1.5, z + dz))
+                add("glass", "props", bx(6.8, 2.0, 2.2, x, 4.2, z))
+        add("wood", "props", bx(6.0, 0.3, 3.0, -14, 2.7, 0))     # work table
+        for dx in (-2.6, 2.6):
+            for dz in (-1.2, 1.2):
+                add("wood", "props", bx(0.26, 2.7, 0.26, -14 + dx, 1.35, dz))
+        for x, z in ((14, -3), (14, 3)):                          # stools
+            st = cylinder(radius=0.75, height=0.24, sections=10)
+            st.apply_transform(concatenate_matrices(T4(x, 2.3, z), RX(-math.pi / 2)))
+            add("wood", "props", st)
+            add("dark", "props", bx(0.22, 2.2, 0.22, x, 1.1, z))
+
         rs = Y_TH / 16
         for i in range(1, 17):
             add("wood", "inner", bx(3.83, rs, 0.9, 0, rs * i - rs / 2, 14.9 - (i - 1) * 0.78))
@@ -330,13 +350,36 @@ def build(state="1827", cut=False, hill=False):
 
     # ---- hillside, foundation and charnel ------------------------------
     if hill:
-        add("stone", "base", bx(24, 0.6, 24, -8.5, Y_CHARNEL - 0.3, -8.5))
-        add("stone", "base", bx(0.9, 12.5, 11.5, -9, Y_CHARNEL + 6.25, -14.75))
-        add("stone", "base", bx(11.5, 12.5, 0.9, -14.75, Y_CHARNEL + 6.25, -9))
-        # earth under the rest of the museum floor, shown as a shallow band so
-        # the charnel stays visible from the cut side
-        add("earth", "base", bx(29.5, 2.0, 41, 5.75, -2.0, 0))
-        add("earth", "base", bx(11.5, 2.0, 29.5, -14.75, -2.0, 5.75))
+        # The charnel is the whole basement storey, not a closet: contemporary
+        # accounts place it in the basement, where cadavers were stored and
+        # prepared, with the museum on the floor above.
+        add("stone", "base", bx(44, 0.8, 44, 0, Y_CHARNEL - 0.4, 0))
+        add("plaster", "base", bx(41, 0.5, 41, 0, Y_MUS - 1.25, 0))
+        # tagged by elevation so the cutaway drops the same two faces the
+        # storeys above lose, opening the charnel to view
+        for side, x, z, w_, d_ in (("left", -20.75, 0, 2.5, 44),
+                                   ("right", 20.75, 0, 2.5, 44),
+                                   ("rear", 0, -20.75, 44, 2.5),
+                                   ("front", 0, 20.75, 44, 2.5)):
+            add("stone", side, bx(w_, 12.3, d_, x, Y_CHARNEL + 6.15, z))
+        for x in (-9, 9):                                     # piers carrying the floor above
+            for z in (-9, 9):
+                add("brick", "base", bx(2.2, 12.3, 2.2, x, Y_CHARNEL + 6.15, z))
+
+        # charnel fittings.  Implied use only -- nothing depicted.
+        add("stone", "props", bx(7.0, 0.45, 3.2, 3, Y_CHARNEL + 2.7, -6))
+        for x in (0.2, 5.8):
+            for z in (-7.2, -4.8):
+                add("dark", "props", bx(0.35, 2.5, 0.35, x, Y_CHARNEL + 1.25, z))
+        for x, z in ((11.5, -6.5), (13.0, -4.4)):
+            b = cylinder(radius=0.7, height=1.6, sections=10)
+            b.apply_transform(concatenate_matrices(T4(x, Y_CHARNEL + 0.8, z), RX(-math.pi / 2)))
+            add("wood", "props", b)
+        add("wood", "props", bx(9.0, 0.3, 1.6, -6, Y_CHARNEL + 1.6, 8))
+        for x in (-9.8, -2.2):
+            add("wood", "props", bx(0.3, 1.6, 1.4, x, Y_CHARNEL + 0.8, 8))
+        add("dark", "props", bx(0.7, 1.0, 0.7, 17, Y_CHARNEL + 4.6, 12))
+
         for i in range(20):                                   # winder to the charnel
             w = cylinder(radius=2.3, height=0.24, sections=6)
             w.apply_transform(concatenate_matrices(
@@ -423,11 +466,14 @@ def export(B, sides, path, label):
             continue
 
         f = tone(m, ao)
-        if textured:
-            # wall polygons triangulate into long slivers: small area, metres
-            # long.  Any per-face shading shows up as dark fans radiating from
-            # the openings, so brick is left completely uniform.
-            f = np.ones(len(f))
+        # A single shade per triangle only works on small triangles.  Wall and
+        # floor polygons triangulate into long slivers -- tiny area, metres
+        # long -- and shading those paints dark fans across the surface.  Judge
+        # by longest edge, which catches slivers that an area test misses.
+        v = m.vertices[m.faces]
+        longest = np.max(np.linalg.norm(
+            v - np.roll(v, 1, axis=1), axis=2), axis=1)
+        f = np.where(longest > 0.45, 1.0, f)
         bins = np.digitize(f, [0.55, 0.72, 0.85, 0.94])
         for b in np.unique(bins):
             i = np.where(bins == b)[0]
@@ -444,7 +490,7 @@ if __name__ == "__main__":
     import os
     OUT = os.path.dirname(os.path.abspath(__file__)) + "/"   # writes beside this script
     SHELL = {"front", "rear", "left", "right", "core", "roof"}
-    CUT = {"rear", "left", "inner", "base", "site"}
+    CUT = {"rear", "left", "inner", "base", "site", "props"}
     export(build("1827"), SHELL, OUT + "theatre.glb", "flat, for AR")
     export(build("1827", hill=True), SHELL | {"base", "site"},
            OUT + "theatre_hill.glb", "on its hill")
