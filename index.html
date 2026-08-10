@@ -24,9 +24,13 @@
   header p{font-size:9px;color:var(--dim);margin:6px 0 0;letter-spacing:.22em}
 
   footer{position:fixed;left:0;right:0;bottom:0;z-index:5;
-    display:flex;justify-content:center;gap:8px;flex-wrap:wrap;
+    display:flex;flex-direction:column;align-items:center;gap:7px;
     padding:22px 14px calc(16px + env(safe-area-inset-bottom,0px));
     background:linear-gradient(transparent,rgba(13,20,27,.8) 40%)}
+  .row{display:flex;justify-content:center;gap:7px;flex-wrap:wrap}
+  .yr{padding:9px 14px;font-size:9px;color:var(--dim)}
+  .yr[aria-pressed="true"]{color:var(--ink);background:var(--bone)}
+  #years.off{opacity:.35;pointer-events:none}
   button{font:inherit;font-size:10px;letter-spacing:.2em;text-transform:uppercase;
     color:var(--bone);background:rgba(13,20,27,.55);border:1px solid var(--line);
     padding:13px 17px;cursor:pointer;backdrop-filter:blur(8px);transition:.15s}
@@ -35,11 +39,11 @@
   #ar{border-color:var(--ox);box-shadow:inset 2px 0 0 var(--ox)}
   button:focus-visible{outline:2px solid var(--ox);outline-offset:2px}
 
-  #tip{position:fixed;left:0;right:0;bottom:78px;z-index:4;text-align:center;
+  #tip{position:fixed;left:0;right:0;bottom:112px;z-index:4;text-align:center;
     font-size:9px;letter-spacing:.22em;color:#6b7a86;pointer-events:none;
     transition:opacity .6s;padding:0 20px}
 
-  #credit{position:fixed;right:14px;bottom:74px;z-index:4;font-size:8px;letter-spacing:.16em;
+  #credit{position:fixed;right:14px;bottom:108px;z-index:4;font-size:8px;letter-spacing:.16em;
     color:#4f5d68;text-align:right;line-height:1.9;pointer-events:none}
   @media (max-width:640px){ #credit{display:none} }
 </style>
@@ -53,7 +57,7 @@
   shadow-intensity="1.4" shadow-softness="0.8" exposure="1.05"
   environment-image="neutral"
   camera-orbit="38deg 74deg 46m" camera-target="0m 4.2m 0m"
-  min-camera-orbit="auto 12deg 6m" max-camera-orbit="auto 91deg 110m"
+  min-camera-orbit="auto 8deg 5m" max-camera-orbit="auto 91deg 110m"
   min-field-of-view="18deg" max-field-of-view="55deg">
   <button id="ar" slot="ar-button" class="track">View at full size</button>
 </model-viewer>
@@ -70,8 +74,15 @@
 </div>
 
 <footer>
-  <button id="bOut" class="track" aria-pressed="true">Exterior</button>
-  <button id="bIn"  class="track" aria-pressed="false">Look inside</button>
+  <div class="row">
+    <button id="bOut" class="track" aria-pressed="true">Exterior</button>
+    <button id="bIn"  class="track" aria-pressed="false">Look inside</button>
+  </div>
+  <div class="row" id="years">
+    <button class="yr track" data-yr="1827" aria-pressed="true">1827</button>
+    <button class="yr track" data-yr="1837" aria-pressed="false">1837</button>
+    <button class="yr track" data-yr="1888" aria-pressed="false">1888</button>
+  </div>
 </footer>
 
 <script type="module"
@@ -83,31 +94,48 @@
   const bIn  = document.getElementById('bIn');
   const tip  = document.getElementById('tip');
 
-  const VIEWS = {
-    out: { src:'theatre.glb',     ios:'theatre.usdz',
-           orbit:'38deg 74deg 46m', target:'0m 4.2m 0m',
-           tip:'Drag to turn · pinch to zoom' },
-    in:  { src:'theatre_cut.glb', ios:'theatre_cut.usdz',
-           orbit:'32deg 58deg 30m', target:'0m 5.4m 0m',
-           tip:'The octagonal theatre · dissecting table at the centre' }
+  const years = document.getElementById('years');
+  const state = { mode:'out', yr:'1827' };
+
+  const SRC = {
+    '1827':'theatre.glb', '1837':'theatre_1837.glb', '1888':'theatre_1888.glb'
+  };
+  const TIP = {
+    '1827':'As built · ridge-and-furrow roof, Chinese railing',
+    '1837':'Roof replaced with a hipped roof and cupola · cupola form conjectural',
+    '1888':'After the 1886 fire · railing omitted, openings bricked up',
+    'in'  :'The octagonal theatre above · the charnel cut into the hillside below'
   };
 
-  function show(which){
-    const v = VIEWS[which];
-    mv.src = v.src;
-    mv.setAttribute('ios-src', v.ios);
-    mv.cameraOrbit = v.orbit;
-    mv.cameraTarget = v.target;
-    bOut.setAttribute('aria-pressed', String(which === 'out'));
-    bIn.setAttribute('aria-pressed',  String(which === 'in'));
-    tip.textContent = v.tip;
+  function show(){
+    const inside = state.mode === 'in';
+    mv.src = inside ? 'theatre_cut.glb' : SRC[state.yr];
+    mv.cameraOrbit  = inside ? '34deg 62deg 42m' : '38deg 74deg 46m';
+    mv.cameraTarget = inside ? '0m 3.4m 0m'      : '0m 4.2m 0m';
+
+    // AR is the 1827 exterior only — the cutaway sits below grade and the
+    // later states have no USDZ
+    if (!inside && state.yr === '1827') mv.setAttribute('ar', '');
+    else mv.removeAttribute('ar');
+
+    bOut.setAttribute('aria-pressed', String(!inside));
+    bIn.setAttribute('aria-pressed',  String(inside));
+    years.classList.toggle('off', inside);
+    document.querySelectorAll('.yr').forEach(b =>
+      b.setAttribute('aria-pressed', String(b.dataset.yr === state.yr)));
+
+    tip.textContent = inside ? TIP.in : TIP[state.yr];
     tip.style.opacity = 1;
     clearTimeout(show._t);
-    show._t = setTimeout(() => { tip.style.opacity = 0; }, 5000);
+    show._t = setTimeout(() => { tip.style.opacity = 0; }, 6000);
   }
 
-  bOut.addEventListener('click', () => show('out'));
-  bIn.addEventListener('click',  () => show('in'));
-  setTimeout(() => { tip.style.opacity = 0; }, 5000);
+  bOut.addEventListener('click', () => { state.mode = 'out'; show(); });
+  bIn.addEventListener('click',  () => { state.mode = 'in';  show(); });
+  years.addEventListener('click', e => {
+    const b = e.target.closest('.yr');
+    if (b) { state.yr = b.dataset.yr; state.mode = 'out'; show(); }
+  });
+  setTimeout(() => { tip.style.opacity = 0; }, 6000);
 </script>
 </html>
