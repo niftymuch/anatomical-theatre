@@ -339,6 +339,29 @@ def build(state="1827", cut=False, hill=False):
         rs = Y_TH / 16
         for i in range(1, 17):
             add("wood", "inner", bx(3.83, rs, 0.9, 0, rs * i - rs / 2, 14.9 - (i - 1) * 0.78))
+        # gangway steps on the four diagonal faces
+        for i in range(TIERS):
+            ai, ao = PIT + i * RUN, PIT + (i + 1) * RUN
+            top = Y_TH + (i + 1) * RISE
+            Vi, Vo = oct_pts(ai), oct_pts(ao)
+            for k in (0, 2, 4, 6):
+                mx = (Vo[k][0] + Vo[(k+1) % 8][0] + Vi[k][0] + Vi[(k+1) % 8][0]) / 4
+                mz = (Vo[k][1] + Vo[(k+1) % 8][1] + Vi[k][1] + Vi[(k+1) % 8][1]) / 4
+                add("wood", "inner", bx(RUN * 0.98, RISE / 2, 3.0, mx,
+                                        top - RISE * 0.75, mz,
+                                        rot=RY(math.atan2(mz, mx))))
+
+        # 3'-6" winder stairs in three corners, per the first floor plan
+        for cx, cz in ((17.6, 17.6), (-17.6, 17.6), (17.6, -17.6)):
+            steps, rr = 17, 1.75
+            for i in range(steps):
+                a0 = i * (math.pi * 2.1 / steps)
+                a1 = a0 + (math.pi * 2.1 / steps)
+                pie = [(cx, cz)] + [(cx + rr * math.cos(a), cz + rr * math.sin(a))
+                                    for a in np.linspace(a0, a1, 5)]
+                add("wood", "inner", flat(Polygon(pie), 0.22, (i + 1) * (Y_TH / steps)))
+            add("dark", "inner", bx(0.35, Y_TH, 0.35, cx, Y_TH / 2, cz))
+
         Vt, topY = oct_pts(PIT + TIERS * RUN), Y_TH + TIERS * RISE
         for k in range(8):
             a, b = Vt[k], Vt[(k + 1) % 8]
@@ -417,7 +440,7 @@ def tone(mesh, ao):
     return f
 
 
-def export(B, sides, path, label):
+def export(B, sides, path, label, bake=True):
     groups = {}
     for mat, side, mesh in B:
         if side in sides:
@@ -465,7 +488,7 @@ def export(B, sides, path, label):
             emit(m, 1.0, mat)
             continue
 
-        f = tone(m, ao)
+        f = tone(m, ao) if bake else np.ones(len(m.faces))
         # A single shade per triangle only works on small triangles.  Wall and
         # floor polygons triangulate into long slivers -- tiny area, metres
         # long -- and shading those paints dark fans across the surface.  Judge
@@ -494,4 +517,6 @@ if __name__ == "__main__":
     export(build("1827"), SHELL, OUT + "theatre.glb", "flat, for AR")
     export(build("1827", hill=True), SHELL | {"base", "site"},
            OUT + "theatre_hill.glb", "on its hill")
-    export(build("1827", cut=True, hill=True), CUT, OUT + "theatre_cut.glb", "cutaway")
+    # the cutaway is lit for real in the browser, so nothing is baked into it
+    export(build("1827", cut=True, hill=True), CUT, OUT + "theatre_cut.glb",
+           "cutaway", bake=False)

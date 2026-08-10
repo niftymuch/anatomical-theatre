@@ -18,6 +18,9 @@
     font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
   .track{letter-spacing:.34em;text-transform:uppercase}
 
+  #three{position:fixed;inset:0;width:100%;height:100%;display:none;z-index:1}
+  #three.on{display:block}
+  model-viewer.off{visibility:hidden;pointer-events:none}
   model-viewer{position:fixed;inset:0;width:100%;height:100%;background:transparent;
     --poster-color:transparent;--progress-bar-color:var(--oxblood);--progress-bar-height:2px}
 
@@ -100,11 +103,21 @@
   <div class="sub track">Historic American Buildings Survey · 7 sheets</div>
 </div>
 
+<canvas id="three"></canvas>
+
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+
 <script type="module"
   src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.3.1/model-viewer.min.js"></script>
 
 <script>
   const mv = document.getElementById('mv');
+  const cv = document.getElementById('three');
   const hint = document.getElementById('hint');
   const btn = { out:document.getElementById('bOut'),
                 hill:document.getElementById('bHill'),
@@ -115,27 +128,40 @@
             hint:'Drawn from the survey sheets · 44 feet square' },
     hill: { src:'theatre_hill.glb', orbit:'196deg 74deg 56m', target:'0m 1.6m 0m', ar:false,
             hint:'The ground fell about 11 feet to the rear · the charnel door sits at the low side' },
-    // walls are retained on the far two elevations, so the camera has to sit
-    // over the open corner or you are looking at the back of a brick wall
-    in:   { src:'theatre_cut.glb',  orbit:'-46deg 68deg 46m', target:'0m 1.4m 0m', ar:false,
-            hint:'Theatre above · museum below · the charnel occupying the basement' }
+    in:   { hint:'Theatre above · museum below · the charnel occupying the basement' }
   };
 
-  let mode = 'out', pending = null;
+  let mode = 'out', interior = null;
 
   function frame(){
     const v = VIEW[mode];
+    if (!v.orbit) return;
     mv.setAttribute('camera-orbit', v.orbit);
     mv.setAttribute('camera-target', v.target);
   }
 
-  function show(next){
+  async function show(next){
     mode = next;
     const v = VIEW[mode];
-    pending = mode;
-    mv.src = v.src;                       // orbit is re-applied once it loads
-    frame();
-    if (v.ar) mv.setAttribute('ar', ''); else mv.removeAttribute('ar');
+    const inside = mode === 'in';
+
+    mv.classList.toggle('off', inside);
+    cv.classList.toggle('on', inside);
+
+    if (!inside){
+      mv.src = v.src;
+      frame();
+      if (v.ar) mv.setAttribute('ar', ''); else mv.removeAttribute('ar');
+    } else {
+      if (!interior){
+        hint.textContent = 'Loading the interior…';
+        hint.style.opacity = 1;
+        interior = (await import('./interior.js')).start(cv);
+      }
+      interior.resume();
+    }
+    if (interior) interior.setActive(inside);
+
     for (const k in btn) btn[k].setAttribute('aria-pressed', String(k === mode));
     hint.textContent = v.hint;
     hint.style.opacity = 1;
@@ -143,9 +169,7 @@
     show._t = setTimeout(() => { hint.style.opacity = 0; }, 6000);
   }
 
-  // setting cameraOrbit before the new model has loaded gets overwritten
-  mv.addEventListener('load', () => { if (pending === mode) frame(); });
-
+  mv.addEventListener('load', () => frame());
   for (const k in btn) btn[k].addEventListener('click', () => show(k));
   setTimeout(() => { hint.style.opacity = 0; }, 6000);
 </script>
