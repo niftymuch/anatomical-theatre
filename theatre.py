@@ -48,14 +48,12 @@ PAL = {
     "roof":  (0.490, 0.518, 0.471),
     "glass": (0.737, 0.847, 0.902),
     "dark":  (0.290, 0.251, 0.220),
-    "wood":  (0.690, 0.541, 0.361),
+    "wood":  (0.408, 0.267, 0.157),
     "plaster": (0.882, 0.867, 0.831),
     "earth": (0.361, 0.455, 0.263),
 }
 TONED = {"brick", "patch", "trim", "stone", "wood", "roof", "earth", "plaster"}
-TEXTURED = {"brick", "patch"}          # these get the brick image
-TILE_U_FT, TILE_V_FT = 4.0, 3.5        # one tile: 4 stretcher+header units
-                                       # wide, 16 courses high
+TILE_U_FT, TILE_V_FT = 4.0, 3.5        # brick tile: 4 units wide, 16 courses
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 def _tex(name):
@@ -65,6 +63,14 @@ def _tex(name):
         return None
 BRICK_MAP = _tex("brick_diffuse.png")   # run brick_texture.py to regenerate
 BRICK_NRM = None      # _tex("brick_normal.png") -- shimmers at grazing angles
+WOOD_MAP = _tex("wood_diffuse.png")
+
+# material -> (image, tile width ft, tile height ft)
+TEXTURED = {
+    "brick": (BRICK_MAP, TILE_U_FT, TILE_V_FT),
+    "patch": (BRICK_MAP, TILE_U_FT, TILE_V_FT),
+    "wood":  (WOOD_MAP, 6.0, 4.0),
+}
 
 
 def planar_uv(mesh, tile_u, tile_v):
@@ -156,8 +162,8 @@ def build(state="1827", cut=False, hill=False):
     sides = [
         ("front", True,  T4(0, 0, HALF - T)),
         ("rear",  True,  concatenate_matrices(T4(0, 0, -(HALF - T)), RY(math.pi))),
-        ("left",  False, concatenate_matrices(T4(-HALF, 0, 0), RY(math.pi / 2))),
-        ("right", False, concatenate_matrices(T4(HALF, 0, 0), RY(-math.pi / 2))),
+        ("left",  False, concatenate_matrices(T4(-(HALF - T), 0, 0), RY(-math.pi / 2))),
+        ("right", False, concatenate_matrices(T4(HALF - T, 0, 0), RY(math.pi / 2))),
     ]
     for name, has_door, xf in sides:
         skip, door = set(), has_door
@@ -459,11 +465,12 @@ def export(B, sides, path, label, bake=True):
         ao = ao_all[cursor:cursor + n]; cursor += n
         base = np.array(PAL[mat])
         alpha = 150 if mat == "glass" else 255
-        textured = mat in TEXTURED and BRICK_MAP is not None
+        tex = TEXTURED.get(mat)
+        textured = tex is not None and tex[0] is not None
 
         def emit(sub, k, name):
             nonlocal tris
-            uv = planar_uv(sub, TILE_U_FT * FT, TILE_V_FT * FT) if textured else None
+            uv = planar_uv(sub, tex[1] * FT, tex[2] * FT) if textured else None
             col = np.clip((np.array([k, k, k]) if textured else base * k), 0, 1)
             kw = dict(name=name,
                       baseColorFactor=[int(v * 255) for v in col] + [alpha],
@@ -472,8 +479,8 @@ def export(B, sides, path, label, bake=True):
                       alphaMode="BLEND" if mat == "glass" else "OPAQUE",
                       doubleSided=True)
             if textured:
-                kw["baseColorTexture"] = BRICK_MAP
-                if BRICK_NRM is not None:
+                kw["baseColorTexture"] = tex[0]
+                if mat != "wood" and BRICK_NRM is not None:
                     kw["normalTexture"] = BRICK_NRM
             sub.visual = trimesh.visual.TextureVisuals(
                 uv=uv, material=trimesh.visual.material.PBRMaterial(**kw))

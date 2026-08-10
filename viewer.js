@@ -27,7 +27,7 @@ export function start(canvas) {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.12;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(INK);
@@ -35,20 +35,25 @@ export function start(canvas) {
   const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 600);
 
   // --- light ------------------------------------------------------------
-  scene.add(new THREE.HemisphereLight(0xc3d6e4, 0x33352c, 0.85));
+  // Shadow depth is the ratio of sun to ambient, not the sun on its own.
+  // Lifting the sky and adding a flat ambient opens the shadows up without
+  // washing out the lit faces.
+  scene.add(new THREE.HemisphereLight(0xc9dae6, 0x4a4a3e, 1.35));
+  scene.add(new THREE.AmbientLight(0xa9bccb, 0.32));
 
-  const sun = new THREE.DirectionalLight(0xfff2e0, 2.4);
+  const sun = new THREE.DirectionalLight(0xfff2e0, 1.75);
   sun.position.set(-20, 30, 24);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.03;
+  sun.shadow.radius = 3;
   const sc = sun.shadow.camera;
   sc.left = -30; sc.right = 30; sc.top = 30; sc.bottom = -30; sc.near = 1; sc.far = 110;
   sc.updateProjectionMatrix();
   scene.add(sun);
 
-  const bounce = new THREE.DirectionalLight(0x93aabc, 0.45);
+  const bounce = new THREE.DirectionalLight(0x93aabc, 0.62);
   bounce.position.set(22, 10, -24);
   scene.add(bounce);
 
@@ -62,7 +67,7 @@ export function start(canvas) {
   // catches the sun's shadow under the flat exterior model
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(160, 160),
-    new THREE.ShadowMaterial({ opacity: 0.42 }));
+    new THREE.ShadowMaterial({ opacity: 0.26 }));
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   ground.visible = false;

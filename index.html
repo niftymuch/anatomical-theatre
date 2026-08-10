@@ -61,6 +61,12 @@
     footer{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
     #hint{bottom:132px}
   }
+  /* ?ar=1 — one button, nothing else */
+  body.ar-only #bOut, body.ar-only #bHill, body.ar-only #bIn,
+  body.ar-only #readout, body.ar-only #titleblock{display:none}
+  body.ar-only #ar{font-size:11px;padding:16px 26px}
+  body.ar-only #hint{opacity:1!important;bottom:104px;max-width:320px;left:50%}
+
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -128,6 +134,11 @@
     in:   'Theatre above · museum below · the charnel occupying the basement'
   };
 
+  // ?ar=1 lands on a stripped page with one button.  Neither platform will
+  // enter AR without a tap, so this cannot auto-launch -- it just removes
+  // everything else so the only thing to do is start it.
+  const arOnly = new URLSearchParams(location.search).has('ar');
+
   let mode = 'out';
   const viewer = (await import('./viewer.js')).start(document.getElementById('three'));
   viewer.setActive(true);
@@ -145,6 +156,13 @@
   }
 
   for (const k in btn) btn[k].addEventListener('click', () => show(k));
+
+  if (arOnly){
+    document.body.classList.add('ar-only');
+    hint.textContent = 'Sweep your phone side to side, then tap the ground. It is 44 feet wide — step back.';
+    hint.style.opacity = 1;
+    clearTimeout(show._t);
+  }
 
   // AR is the flat model only; model-viewer hands it to Quick Look or Scene Viewer
   arBtn.addEventListener('click', () => mv.activateAR());

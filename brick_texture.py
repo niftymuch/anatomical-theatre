@@ -94,5 +94,48 @@ def normal_from(hm, strength=2.0):
     return (np.stack([nx/ln, ny/ln, nz/ln], -1) * 0.5 + 0.5).clip(0, 1).__mul__(255).astype(np.uint8)
 
 
+# ---------------------------------------------------------------- planks
+# Floor boards for the museum, theatre and stairs.  One tile is 6'-0" along
+# the boards by 4'-0" across six 8" boards.
+PLANK_RES = 512
+BOARDS = 6
+PLANK_U_FT, PLANK_V_FT = 6.0, 4.0
+BOARD = np.array([104, 68, 40], float)      # walnut-brown oak, not honey
+GAP = np.array([46, 31, 20], float)
+
+
+def planks():
+    rng = np.random.default_rng(17)
+    n = PLANK_RES
+    h = n // BOARDS
+    img = np.zeros((n, n, 3), float)
+    img[:] = GAP
+
+    for b in range(BOARDS):
+        y0 = b * h
+        # butt joints at irregular intervals so the tile does not read as a grid
+        cuts = sorted(rng.integers(40, n - 40, size=rng.integers(1, 3)).tolist())
+        edges = [0] + cuts + [n]
+        for i in range(len(edges) - 1):
+            x0, x1 = edges[i], edges[i + 1]
+            tone = BOARD * rng.uniform(0.93, 1.09) + rng.normal(0, 3, 3)
+            rows, cols = h - 2, x1 - x0 - 2
+            if cols <= 0:
+                continue
+            blk = np.ones((rows, cols, 3)) * np.clip(tone, 0, 255)
+            # grain: low-frequency streaks running along the board
+            grain = rng.normal(1.0, 0.05, (rows, 1, 1)).repeat(cols, 1)
+            grain = 0.5 * grain + 0.5 * np.roll(grain, 3, axis=0)
+            blk *= grain
+            img[y0 + 1:y0 + h - 1, x0 + 1:x1 - 1] = np.clip(blk, 0, 255)
+
+    d = Image.fromarray(img.astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.4))
+    here = os.path.dirname(os.path.abspath(__file__))
+    d.save(os.path.join(here, "wood_diffuse.png"))
+    print(f"planks, {PLANK_RES}px, one tile = {PLANK_U_FT}' x {PLANK_V_FT}' "
+          f"= {BOARDS} boards")
+
+
 if __name__ == "__main__":
     build()
+    planks()
