@@ -18,6 +18,14 @@ def convert(glb_path, usdz_path):
     stage.SetDefaultPrim(root.GetPrim())
     looks = UsdGeom.Scope.Define(stage, "/Theatre/Looks")
 
+    # any texture the glTF references has to travel inside the package
+    here = os.path.dirname(os.path.abspath(glb_path))
+    tex_src = os.path.join(here, "brick_diffuse.png")
+    tex_name = "brick_diffuse.png"
+    has_tex = os.path.exists(tex_src)
+    if has_tex:
+        shutil.copy(tex_src, os.path.join(work, tex_name))
+
     made = {}
     for name, g in scene.geometry.items():
         safe = "".join(c if c.isalnum() else "_" for c in name)
@@ -38,6 +46,22 @@ def convert(glb_path, usdz_path):
             sh.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(0.0)
             if a < 0.99:
                 sh.CreateInput("opacity", Sdf.ValueTypeNames.Float).Set(a)
+
+            uv0 = getattr(g.visual, "uv", None)
+            if has_tex and uv0 is not None and len(uv0):
+                reader = UsdShade.Shader.Define(stage, mpath + "/stReader")
+                reader.CreateIdAttr("UsdPrimvarReader_float2")
+                reader.CreateInput("varname", Sdf.ValueTypeNames.Token).Set("st")
+                tex = UsdShade.Shader.Define(stage, mpath + "/diffuseTex")
+                tex.CreateIdAttr("UsdUVTexture")
+                tex.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(f"./{tex_name}")
+                tex.CreateInput("wrapS", Sdf.ValueTypeNames.Token).Set("repeat")
+                tex.CreateInput("wrapT", Sdf.ValueTypeNames.Token).Set("repeat")
+                tex.CreateInput("st", Sdf.ValueTypeNames.Float2).ConnectToSource(
+                    reader.ConnectableAPI(), "result")
+                tex.CreateOutput("rgb", Sdf.ValueTypeNames.Float3)
+                sh.GetInput("diffuseColor").ConnectToSource(tex.ConnectableAPI(), "rgb")
+
             mat.CreateSurfaceOutput().ConnectToSource(sh.ConnectableAPI(), "surface")
             made[mat_name] = mat
 
@@ -55,6 +79,12 @@ def convert(glb_path, usdz_path):
         mesh.SetNormalsInterpolation("vertex")
         ext = np.array([v.min(axis=0), v.max(axis=0)], dtype=np.float32)
         mesh.CreateExtentAttr([Gf.Vec3f(*ext.tolist()[0]), Gf.Vec3f(*ext.tolist()[1])])
+        uv = getattr(g.visual, "uv", None)
+        if uv is not None and len(uv) == len(v):
+            st = UsdGeom.PrimvarsAPI(mesh).CreatePrimvar(
+                "st", Sdf.ValueTypeNames.TexCoord2fArray, UsdGeom.Tokens.vertex)
+            # glTF puts the origin top-left, USD bottom-left
+            st.Set([Gf.Vec2f(float(a), float(1.0 - b)) for a, b in uv.tolist()])
         UsdShade.MaterialBindingAPI(mesh).Bind(made[mat_name])
 
     stage.GetRootLayer().Save()
@@ -66,4 +96,6 @@ def convert(glb_path, usdz_path):
 
 
 if __name__ == "__main__":
-    convert("/home/claude/theatre.glb", "/home/claude/theatre.usdz")
+    import os
+    here = os.path.dirname(os.path.abspath(__file__))
+    convert(os.path.join(here, "theatre.glb"), os.path.join(here, "theatre.usdz"))
