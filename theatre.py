@@ -64,7 +64,7 @@ def _tex(name):
     except FileNotFoundError:
         return None
 BRICK_MAP = _tex("brick_diffuse.png")   # run brick_texture.py to regenerate
-BRICK_NRM = _tex("brick_normal.png")
+BRICK_NRM = None      # _tex("brick_normal.png") -- shimmers at grazing angles
 
 
 def planar_uv(mesh, tile_u, tile_v):
@@ -490,7 +490,7 @@ if __name__ == "__main__":
     import os
     OUT = os.path.dirname(os.path.abspath(__file__)) + "/"   # writes beside this script
     SHELL = {"front", "rear", "left", "right", "core", "roof"}
-    CUT = {"rear", "left", "inner", "base", "site", "props"}
+    CUT = {"rear", "left", "inner", "base", "site"}   # "props" left out
     export(build("1827"), SHELL, OUT + "theatre.glb", "flat, for AR")
     export(build("1827", hill=True), SHELL | {"base", "site"},
            OUT + "theatre_hill.glb", "on its hill")

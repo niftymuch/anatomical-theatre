@@ -2,49 +2,64 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>The Anatomical Theatre · University of Virginia</title>
+<title>Anatomical Theatre · University of Virginia</title>
 <meta name="description" content="Thomas Jefferson's Anatomical Theatre, 1826–1939, reconstructed from the Historic American Buildings Survey.">
 
 <style>
-  :root{ --ink:#eae6dc; --dim:#a9b4bd; --line:#6b7a88; --ox:#d0705f; }
+  :root{
+    --ink:#101820;
+    --line:#2c3b49;
+    --bone:#e8e3d6;
+    --bone-dim:#9aa6ad;
+    --oxblood:#b4453a;
+  }
   *{box-sizing:border-box}
-  html,body{height:100%;margin:0;overflow:hidden;color:var(--ink);
-    background:linear-gradient(#33424f 0%,#475764 55%,#6d757a 100%);
+  html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(--bone);
     font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
-  .track{letter-spacing:.3em;text-transform:uppercase}
+  .track{letter-spacing:.34em;text-transform:uppercase}
 
-  model-viewer{position:fixed;inset:0;width:100%;height:100%;
-    background:transparent;
-    --poster-color:transparent;
-    --progress-bar-color:var(--ox);
-    --progress-bar-height:2px}
+  model-viewer{position:fixed;inset:0;width:100%;height:100%;background:transparent;
+    --poster-color:transparent;--progress-bar-color:var(--oxblood);--progress-bar-height:2px}
 
-  header{position:fixed;top:0;left:0;right:0;z-index:5;pointer-events:none;
-    padding:calc(16px + env(safe-area-inset-top,0px)) 18px 26px}
-  header h1{font-size:12px;font-weight:600;margin:0}
-  header p{font-size:9px;color:var(--dim);margin:6px 0 0;letter-spacing:.22em}
+  /* sheet border, after the HABS drawing frame */
+  #frame{position:fixed;inset:14px;border:1px solid var(--line);pointer-events:none;z-index:5}
+  @media (max-width:700px){#frame{inset:8px}}
 
-  footer{position:fixed;left:0;right:0;bottom:0;z-index:5;
-    display:flex;flex-direction:column;align-items:center;gap:7px;
-    padding:22px 14px calc(16px + env(safe-area-inset-bottom,0px))}
-  .row{display:flex;justify-content:center;gap:7px;flex-wrap:wrap}
-  button{font:inherit;font-size:10px;letter-spacing:.2em;text-transform:uppercase;
-    color:var(--ink);background:rgba(20,30,40,.42);border:1px solid var(--line);
-    padding:13px 17px;cursor:pointer;backdrop-filter:blur(6px);transition:.15s}
-  button:hover{border-color:#93a2ad}
-  button[aria-pressed="true"]{color:#22303b;background:var(--ink);border-color:var(--ink)}
-  .yr{padding:9px 14px;font-size:9px;color:var(--dim)}
-  .yr[aria-pressed="true"]{color:#22303b;background:var(--ink)}
-  #years.off{opacity:.35;pointer-events:none}
-  #ar{border-color:var(--ox);color:var(--ox);box-shadow:inset 2px 0 0 var(--ox)}
-  button:focus-visible{outline:2px solid var(--ox);outline-offset:2px}
+  #panel{position:fixed;left:15px;top:15px;z-index:6;pointer-events:none}
+  #panel h1{font-size:11px;font-weight:600;margin:0 0 3px}
+  #panel .lede{font-size:9px;color:var(--bone-dim);letter-spacing:.2em;margin:0}
 
-  #tip{position:fixed;left:0;right:0;bottom:112px;z-index:4;text-align:center;
-    font-size:9px;letter-spacing:.22em;color:var(--dim);pointer-events:none;
+  footer{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;justify-content:center;
+    gap:6px;flex-wrap:wrap;padding:20px 16px calc(58px + env(safe-area-inset-bottom,0px))}
+  button{font:inherit;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--bone-dim);background:rgba(16,24,32,.72);border:1px solid var(--line);
+    padding:11px 15px;cursor:pointer;transition:.15s;backdrop-filter:blur(6px)}
+  button:hover{color:var(--bone);border-color:#44586a}
+  button[aria-pressed="true"]{color:var(--ink);background:var(--bone);border-color:var(--bone)}
+  #ar{color:var(--bone);border-color:var(--oxblood);box-shadow:inset 2px 0 0 var(--oxblood)}
+  button:focus-visible{outline:2px solid var(--oxblood);outline-offset:2px}
+
+  #readout{position:fixed;right:15px;top:15px;z-index:6;font-size:9px;letter-spacing:.2em;
+    color:var(--bone-dim);text-align:right;pointer-events:none;max-width:46%;line-height:1.9}
+
+  #titleblock{position:fixed;right:15px;bottom:15px;z-index:6;
+    border-left:1px solid var(--line);border-top:1px solid var(--line);
+    background:rgba(16,24,32,.82);backdrop-filter:blur(6px);
+    padding:9px 15px 10px;text-align:right;pointer-events:none}
+  #titleblock .name{font-size:12px;font-weight:600}
+  #titleblock .sub{font-size:8px;color:var(--bone-dim);margin-top:5px;letter-spacing:.2em}
+
+  #hint{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:6;
+    font-size:8.5px;letter-spacing:.24em;color:#66757f;pointer-events:none;text-align:center;
     transition:opacity .6s;padding:0 20px}
-  #credit{position:fixed;right:14px;bottom:108px;z-index:4;font-size:8px;
-    letter-spacing:.16em;color:#8b98a2;text-align:right;line-height:1.9;pointer-events:none}
-  @media (max-width:640px){ #credit{display:none} }
+
+  @media (max-width:760px){
+    #titleblock{left:15px;right:15px;text-align:left;border-right:0}
+    #readout{display:none}
+    footer{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+    #hint{bottom:132px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
 <model-viewer id="mv"
@@ -53,75 +68,85 @@
   alt="Thomas Jefferson's Anatomical Theatre, a 44-foot square brick building of two storeys with half-round windows and a railed parapet."
   ar ar-modes="webxr scene-viewer quick-look" ar-scale="fixed" ar-placement="floor"
   camera-controls touch-action="pan-y" interaction-prompt="none"
-  shadow-intensity="0" exposure="0.92"
-  environment-image="neutral" tone-mapping="commerce"
+  shadow-intensity="0" exposure="1.0" environment-image="neutral" tone-mapping="commerce"
   camera-orbit="38deg 76deg 46m" camera-target="0m 4.2m 0m"
   min-camera-orbit="auto 8deg 5m" max-camera-orbit="auto 91deg 110m"
   min-field-of-view="18deg" max-field-of-view="55deg">
   <button id="ar" slot="ar-button" class="track">View at full size</button>
 </model-viewer>
 
-<header>
-  <h1 class="track">The Anatomical Theatre</h1>
-  <p class="track">Thomas Jefferson · 1826–1939 · 44 feet square</p>
-</header>
+<div id="frame"></div>
 
-<div id="tip" class="track">Drag to turn · pinch to zoom</div>
-
-<div id="credit" class="track">
-  Reconstructed from the Historic American Buildings<br>
-  Survey measured drawings · other reconstructions,<br>
-  based on photographs, show a different fenestration
+<div id="panel">
+  <h1 class="track">Anatomical Theatre</h1>
+  <p class="lede track">Model from HABS sheets 1–7</p>
 </div>
 
+<div id="readout" class="track">
+  Reconstructed from the survey<br>measured drawings · other<br>
+  reconstructions, based on<br>photographs, differ
+</div>
+
+<div id="hint" class="track">Drag to orbit · pinch to zoom</div>
+
 <footer>
-  <div class="row">
-    <button id="bOut" class="track" aria-pressed="true">Exterior</button>
-    <button id="bIn"  class="track" aria-pressed="false">Look inside</button>
-  </div>
-  <div class="row">
-    <button id="bHill" class="track" aria-pressed="false">On its hill</button>
-  </div>
+  <button id="bOut" class="track" aria-pressed="true">Exterior</button>
+  <button id="bHill" class="track" aria-pressed="false">On its hill</button>
+  <button id="bIn" class="track" aria-pressed="false">Look inside</button>
 </footer>
+
+<div id="titleblock">
+  <div class="name track">Anatomical Theatre</div>
+  <div class="sub track">Historic American Buildings Survey · 7 sheets</div>
+</div>
 
 <script type="module"
   src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.3.1/model-viewer.min.js"></script>
 
 <script>
   const mv = document.getElementById('mv');
+  const hint = document.getElementById('hint');
   const btn = { out:document.getElementById('bOut'),
                 hill:document.getElementById('bHill'),
                 in:document.getElementById('bIn') };
-  const tip = document.getElementById('tip');
 
   const VIEW = {
-    out:  { src:'theatre.glb',
-            orbit:'38deg 76deg 46m', target:'0m 4.2m 0m', ar:true,
-            tip:'Drawn from the survey sheets · 44 feet square' },
-    hill: { src:'theatre_hill.glb',
-            orbit:'214deg 72deg 54m', target:'0m 2.0m 0m', ar:false,
-            tip:'The ground fell about 11 feet to the rear · the charnel door sits at the low side' },
-    in:   { src:'theatre_cut.glb',
-            orbit:'36deg 66deg 44m', target:'0m 1.6m 0m', ar:false,
-            tip:'Theatre above · museum below · the charnel occupying the basement' }
+    out:  { src:'theatre.glb',      orbit:'38deg 76deg 46m', target:'0m 4.2m 0m', ar:true,
+            hint:'Drawn from the survey sheets · 44 feet square' },
+    hill: { src:'theatre_hill.glb', orbit:'196deg 74deg 56m', target:'0m 1.6m 0m', ar:false,
+            hint:'The ground fell about 11 feet to the rear · the charnel door sits at the low side' },
+    // walls are retained on the far two elevations, so the camera has to sit
+    // over the open corner or you are looking at the back of a brick wall
+    in:   { src:'theatre_cut.glb',  orbit:'-46deg 68deg 46m', target:'0m 1.4m 0m', ar:false,
+            hint:'Theatre above · museum below · the charnel occupying the basement' }
   };
 
-  let mode = 'out';
+  let mode = 'out', pending = null;
+
+  function frame(){
+    const v = VIEW[mode];
+    mv.setAttribute('camera-orbit', v.orbit);
+    mv.setAttribute('camera-target', v.target);
+  }
+
   function show(next){
     mode = next;
     const v = VIEW[mode];
-    mv.src = v.src;
-    mv.cameraOrbit = v.orbit;
-    mv.cameraTarget = v.target;
+    pending = mode;
+    mv.src = v.src;                       // orbit is re-applied once it loads
+    frame();
     if (v.ar) mv.setAttribute('ar', ''); else mv.removeAttribute('ar');
     for (const k in btn) btn[k].setAttribute('aria-pressed', String(k === mode));
-    tip.textContent = v.tip;
-    tip.style.opacity = 1;
+    hint.textContent = v.hint;
+    hint.style.opacity = 1;
     clearTimeout(show._t);
-    show._t = setTimeout(() => { tip.style.opacity = 0; }, 6000);
+    show._t = setTimeout(() => { hint.style.opacity = 0; }, 6000);
   }
 
+  // setting cameraOrbit before the new model has loaded gets overwritten
+  mv.addEventListener('load', () => { if (pending === mode) frame(); });
+
   for (const k in btn) btn[k].addEventListener('click', () => show(k));
-  setTimeout(() => { tip.style.opacity = 0; }, 6000);
+  setTimeout(() => { hint.style.opacity = 0; }, 6000);
 </script>
 </html>
