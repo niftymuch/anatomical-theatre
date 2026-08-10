@@ -49,7 +49,7 @@ PAL = {
     "glass": (0.737, 0.847, 0.902),
     "dark":  (0.290, 0.251, 0.220),
     "wood":  (0.690, 0.541, 0.361),
-    "earth": (0.404, 0.400, 0.322),
+    "earth": (0.361, 0.455, 0.263),
 }
 TONED = {"brick", "patch", "trim", "stone", "wood", "roof", "earth"}
 TEXTURED = {"brick", "patch"}          # these get the brick image
