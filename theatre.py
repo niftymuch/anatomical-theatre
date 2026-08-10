@@ -172,6 +172,13 @@ def build(state="1827", cut=False, hill=False):
             skip = {(-6.0, SILL_HI), (6.0, SILL_HI)}
 
         holes = [lune(x, s) for x in WIN_X for s in (SILL_LO, SILL_HI) if (x, s) not in skip]
+        if hill and name == "rear":
+            # doorway into the charnel, at the low grade (local +x is world -x
+            # on this elevation, so 9 puts it where the charnel corner is)
+            holes.append([(9 - 1.7, GRADE_R), (9 + 1.7, GRADE_R),
+                          (9 + 1.7, GRADE_R + 4.6)]
+                         + arc(9, GRADE_R + 4.6, 1.7, 0, math.pi)
+                         + [(9 - 1.7, GRADE_R + 4.6)])
         if door:
             holes.append([(-DOOR_W / 2, Y_MUS), (DOOR_W / 2, Y_MUS),
                           (DOOR_W / 2, Y_MUS + DOOR_H), (-DOOR_W / 2, Y_MUS + DOOR_H)])
@@ -382,7 +389,7 @@ def build(state="1827", cut=False, hill=False):
         # The charnel is the whole basement storey, not a closet: contemporary
         # accounts place it in the basement, where cadavers were stored and
         # prepared, with the museum on the floor above.
-        add("stone", "base", bx(44, 0.8, 44, 0, Y_CHARNEL - 0.4, 0))
+        add("stone", "base", bx(43.2, 0.8, 43.2, 0, Y_CHARNEL - 0.4, 0))
         add("wood", "base", bx(41, 0.35, 41, 0, Y_CHARNEL + 0.175, 0))
         add("plaster", "base", bx(41, 0.5, 41, 0, Y_MUS - 1.25, 0))
         # No separate basement perimeter walls: when hill is set the exterior
@@ -412,23 +419,23 @@ def build(state="1827", cut=False, hill=False):
                 T4(-15.75, -0.7 - i * (12.6 / 20), -15.75),
                 RX(-math.pi / 2), RZ(-i * (math.pi * 2.4 / 20))))
             add("wood", "base", w)
-        add("dark", "base", bx(3.4, 6.0, 0.5, -9.0, GRADE_R + 3.0, -HALF + 0.25))
+        add("dark", "base", bx(3.2, 4.5, 0.26, -9.0, GRADE_R + 2.25, -HALF + 0.62))
 
         # terrain only behind the retained faces, so the cutaway stays open
         rear = extrude_polygon(Polygon([(-44, GRADE_R), (44, GRADE_R),
-                                        (44, -22), (-44, -22)]), 22.0)
+                                        (44, -22), (-44, -22)]), 24.0)
         rear.apply_transform(T4(0, 0, -44))
         add("earth", "site", rear)
-        left = extrude_polygon(Polygon([(-HALF - 22, GRADE_F + 0.4), (HALF, GRADE_R),
-                                        (HALF, -22), (-HALF - 22, -22)]), 22.0)
+        left = extrude_polygon(Polygon([(-HALF - 22, GRADE_F + 0.4), (HALF + 2, GRADE_R),
+                                        (HALF + 2, -22), (-HALF - 22, -22)]), 24.0)
         left.apply_transform(concatenate_matrices(T4(-44, 0, 0), RY(math.pi / 2)))
         add("earth", "site", left)
 
         for i in range(20):                                   # outside stair
             h = -(12.5 / 20) * i - (GRADE_R - 1)
             add("stone", "site", bx(0.85, h, 5.4, 4.2 + i * 0.85,
-                                    -(12.5 / 20) * i - h / 2, -HALF - 3.0))
-        add("stone", "site", bx(7.5, 1.1, 6.0, 0, -0.55, -HALF - 3.0))
+                                    -(12.5 / 20) * i - h / 2, -HALF - 3.2))
+        add("stone", "site", bx(7.5, 1.1, 6.8, 0, -0.55, -HALF - 2.6))
 
     return B
 
