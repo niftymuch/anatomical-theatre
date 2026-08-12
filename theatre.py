@@ -460,7 +460,7 @@ def tone(mesh, ao):
     return f
 
 
-def export(B, sides, path, label, bake=True, scale=1.0):
+def export(B, sides, path, label, bake=True, scale=1.0, use_textures=True):
     groups = {}
     for mat, side, mesh in B:
         if side in sides:
@@ -483,7 +483,7 @@ def export(B, sides, path, label, bake=True, scale=1.0):
         ao = ao_all[cursor:cursor + n]; cursor += n
         base = np.array(PAL[mat])
         alpha = 150 if mat == "glass" else 255
-        tex = TEXTURED.get(mat)
+        tex = TEXTURED.get(mat) if use_textures else None
         textured = tex is not None and tex[0] is not None
 
         def emit(sub, k, name):
@@ -535,12 +535,19 @@ if __name__ == "__main__":
     OUT = os.path.dirname(os.path.abspath(__file__)) + "/"   # writes beside this script
     SHELL = {"front", "rear", "left", "right", "core", "roof"}
     CUT = {"rear", "left", "inner", "base", "site"}   # "props" left out
-    export(build("1827"), SHELL, OUT + "theatre.glb", "flat, for AR", bake=False)
+    # AR outputs: flat PAL colors, no textures. Quick Look/RealityKit was
+    # rendering the textured brick/wood surfaces as flat white instead of
+    # sampling the image, and that was never reliably root-caused without
+    # on-device debugging -- flat color materials render correctly (the
+    # trim/stone/dark surfaces already prove that path works), so AR skips
+    # texturing entirely rather than carrying that risk into every deploy.
+    export(build("1827"), SHELL, OUT + "theatre.glb", "flat, for AR",
+           bake=False, use_textures=False)
     # tabletop copy at 1/4" = 1'-0", the scale the survey sheets are drawn at:
     # 44 feet becomes 11 inches, so it sits on the ground in front of you
     # instead of swallowing you
     export(build("1827"), SHELL, OUT + "theatre_model.glb", "tabletop 1:48",
-           bake=False, scale=1 / 48)
+           bake=False, scale=1 / 48, use_textures=False)
     export(build("1827", hill=True), SHELL | {"base", "site"},
            OUT + "theatre_hill.glb", "on its hill", bake=False)
     # the cutaway is lit for real in the browser, so nothing is baked into it
