@@ -64,17 +64,17 @@
   /* ?ar=1 — one button, nothing else */
   body.ar-only #bOut, body.ar-only #bHill, body.ar-only #bIn,
   body.ar-only #readout, body.ar-only #titleblock{display:none}
-  body.ar-only #ar{font-size:11px;padding:16px 26px}
+  body.ar-only #ar, body.ar-only #arSmall{font-size:11px;padding:16px 22px}
   body.ar-only #hint{opacity:1!important;bottom:104px;max-width:320px;left:50%}
 
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
 <model-viewer id="mv"
-  src="theatre.glb"
-  ios-src="theatre.usdz"
+  src="theatre.glb?v=8"
+  ios-src="theatre.usdz?v=8"
   alt="Thomas Jefferson's Anatomical Theatre, a 44-foot square brick building of two storeys with half-round windows and a railed parapet."
-  ar ar-modes="webxr scene-viewer quick-look" ar-scale="fixed" ar-placement="floor"
+  ar ar-modes="scene-viewer webxr quick-look" ar-scale="auto" ar-placement="floor"
   camera-controls touch-action="pan-y" interaction-prompt="none"
   shadow-intensity="0" exposure="1.0" environment-image="neutral" tone-mapping="commerce"
   camera-orbit="38deg 76deg 46m" camera-target="0m 4.2m 0m"
@@ -100,7 +100,8 @@
   <button id="bOut" class="track" aria-pressed="true">Exterior</button>
   <button id="bHill" class="track" aria-pressed="false">On its hill</button>
   <button id="bIn" class="track" aria-pressed="false">Look inside</button>
-  <button id="ar" class="track" hidden>View at full size</button>
+  <button id="ar" class="track" hidden>Actual size</button>
+  <button id="arSmall" class="track" hidden>Tabletop</button>
 </footer>
 
 <div id="titleblock">
@@ -124,6 +125,7 @@
   const mv = document.getElementById('mv');
   const hint = document.getElementById('hint');
   const arBtn = document.getElementById('ar');
+  const arSmallBtn = document.getElementById('arSmall');
   const btn = { out:document.getElementById('bOut'),
                 hill:document.getElementById('bHill'),
                 in:document.getElementById('bIn') };
@@ -139,6 +141,7 @@
   // everything else so the only thing to do is start it.
   const arOnly = new URLSearchParams(location.search).has('ar');
 
+  const V = 8;                    // bump with the models to bust caches
   let mode = 'out';
   const viewer = (await import('./viewer.js')).start(document.getElementById('three'));
   viewer.setActive(true);
@@ -148,7 +151,9 @@
     mode = next;
     viewer.show(mode);
     for (const k in btn) btn[k].setAttribute('aria-pressed', String(k === mode));
-    arBtn.hidden = !(mode === 'out' && mv.canActivateAR);
+    const canAR = mode === 'out' && mv.canActivateAR;
+    arBtn.hidden = !canAR;
+    arSmallBtn.hidden = !canAR;
     hint.textContent = HINT[mode];
     hint.style.opacity = 1;
     clearTimeout(show._t);
@@ -159,14 +164,28 @@
 
   if (arOnly){
     document.body.classList.add('ar-only');
-    hint.textContent = 'Sweep your phone side to side, then tap the ground. It is 44 feet wide — step back.';
+    hint.textContent = 'Tabletop places an 11-inch model you can walk around. Actual size is 44 feet — aim well away from your feet before tapping. Pinch to resize either.';
     hint.style.opacity = 1;
     clearTimeout(show._t);
   }
 
-  // AR is the flat model only; model-viewer hands it to Quick Look or Scene Viewer
-  arBtn.addEventListener('click', () => mv.activateAR());
-  mv.addEventListener('load', () => { arBtn.hidden = !(mode === 'out' && mv.canActivateAR); });
+  // AR is the flat model only; model-viewer hands it to Quick Look or Scene Viewer.
+  // Two entry points: the building at true size, and a tabletop copy at
+  // 1/4" = 1'-0" for when you want to walk around it rather than stand in it.
+  function launchAR(base){
+    if (mv.getAttribute('src').startsWith(base)) return mv.activateAR();
+    mv.addEventListener('load', () => mv.activateAR(), { once: true });
+    mv.setAttribute('src', base + '.glb?v=' + V);
+    mv.setAttribute('ios-src', base + '.usdz?v=' + V);
+  }
+  arBtn.addEventListener('click', () => launchAR('theatre'));
+  arSmallBtn.addEventListener('click', () => launchAR('theatre_model'));
+
+  mv.addEventListener('load', () => {
+    const canAR = mode === 'out' && mv.canActivateAR;
+    arBtn.hidden = !canAR;
+    arSmallBtn.hidden = !canAR;
+  });
 
   setTimeout(() => { hint.style.opacity = 0; }, 6000);
 </script>

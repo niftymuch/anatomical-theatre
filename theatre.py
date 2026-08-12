@@ -307,8 +307,12 @@ def build(state="1827", cut=False, hill=False):
         ch = [[(-18.2, -18.2), (-13.3, -18.2), (-13.3, -13.3), (-18.2, -13.3)]] if hill else []
         add("wood", "inner", flat(Polygon(sq, ch), 1.0, Y_MUS))
         x0, x1, z0, z1 = WELL
-        add("wood", "inner",
-            flat(Polygon(sq, [[(x0, z0), (x1, z0), (x1, z1), (x0, z1)]]), 1.0, Y_TH))
+        WINDERS = ((17.6, 17.6), (-17.6, 17.6), (17.6, -17.6))
+        th_holes = [[(x0, z0), (x1, z0), (x1, z1), (x0, z1)]]
+        for cx, cz in WINDERS:                       # openings for the winders
+            th_holes.append([(cx - 2.3, cz - 2.3), (cx + 2.3, cz - 2.3),
+                             (cx + 2.3, cz + 2.3), (cx - 2.3, cz + 2.3)])
+        add("wood", "inner", flat(Polygon(sq, th_holes), 1.0, Y_TH))
         for i in range(TIERS):
             ai, ao = PIT + i * RUN, PIT + (i + 1) * RUN
             top = Y_TH + (i + 1) * RISE
@@ -365,7 +369,7 @@ def build(state="1827", cut=False, hill=False):
                                         rot=RY(math.atan2(mz, mx))))
 
         # 3'-6" winder stairs in three corners, per the first floor plan
-        for cx, cz in ((17.6, 17.6), (-17.6, 17.6), (17.6, -17.6)):
+        for cx, cz in WINDERS:
             steps, rr = 17, 1.75
             for i in range(steps):
                 a0 = i * (math.pi * 2.1 / steps)
@@ -420,6 +424,12 @@ def build(state="1827", cut=False, hill=False):
                 RX(-math.pi / 2), RZ(-i * (math.pi * 2.4 / 20))))
             add("wood", "base", w)
         add("dark", "base", bx(3.2, 4.5, 0.26, -9.0, GRADE_R + 2.25, -HALF + 0.62))
+        fan = extrude_polygon(Polygon(
+            [(9 + 1.55, GRADE_R + 4.6)] + arc(9, GRADE_R + 4.6, 1.55, 0, math.pi)
+            + [(9 - 1.55, GRADE_R + 4.6)]), 0.10)
+        fan.apply_transform(concatenate_matrices(
+            T4(0, 0, -(HALF - T)), RY(math.pi), T4(0, 0, T - 0.5)))
+        add("glass", "base", fan)
 
         # terrain only behind the retained faces, so the cutaway stays open
         rear = extrude_polygon(Polygon([(-44, GRADE_R), (44, GRADE_R),
@@ -450,7 +460,7 @@ def tone(mesh, ao):
     return f
 
 
-def export(B, sides, path, label, bake=True):
+def export(B, sides, path, label, bake=True, scale=1.0):
     groups = {}
     for mat, side, mesh in B:
         if side in sides:
@@ -460,7 +470,7 @@ def export(B, sides, path, label, bake=True):
     for mat, meshes in groups.items():
         m = trimesh.util.concatenate([x.copy() for x in meshes])
         m.apply_translation([0, -GROUND, 0])
-        m.apply_scale(FT)
+        m.apply_scale(FT * scale)
         parts.append((mat, m))
 
     world = trimesh.util.concatenate([m for _, m in parts])
@@ -526,6 +536,11 @@ if __name__ == "__main__":
     SHELL = {"front", "rear", "left", "right", "core", "roof"}
     CUT = {"rear", "left", "inner", "base", "site"}   # "props" left out
     export(build("1827"), SHELL, OUT + "theatre.glb", "flat, for AR", bake=False)
+    # tabletop copy at 1/4" = 1'-0", the scale the survey sheets are drawn at:
+    # 44 feet becomes 11 inches, so it sits on the ground in front of you
+    # instead of swallowing you
+    export(build("1827"), SHELL, OUT + "theatre_model.glb", "tabletop 1:48",
+           bake=False, scale=1 / 48)
     export(build("1827", hill=True), SHELL | {"base", "site"},
            OUT + "theatre_hill.glb", "on its hill", bake=False)
     # the cutaway is lit for real in the browser, so nothing is baked into it

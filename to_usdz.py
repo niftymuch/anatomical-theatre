@@ -99,3 +99,4 @@ if __name__ == "__main__":
     import os
     here = os.path.dirname(os.path.abspath(__file__))
     convert(os.path.join(here, "theatre.glb"), os.path.join(here, "theatre.usdz"))
+    convert(os.path.join(here, "theatre_model.glb"), os.path.join(here, "theatre_model.usdz"))

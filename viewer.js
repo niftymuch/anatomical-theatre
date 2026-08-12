@@ -15,6 +15,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const INK = 0x101820;
 
+const V = 8;   // bump with the models to bust the browser cache
+
 const VIEWS = {
   out:  { file: 'theatre.glb',      az:  38, el: 20, pad: 1.30, ground: true },
   hill: { file: 'theatre_hill.glb', az: 205, el: 17, pad: 1.20, ground: false },
@@ -132,7 +134,7 @@ export function start(canvas) {
       if (onReady) onReady();
     };
     if (cache[name]) return apply(cache[name]);
-    loader.load(v.file, (gltf) => {
+    loader.load(v.file + '?v=' + V, (gltf) => {
       dress(gltf.scene);
       scene.add(gltf.scene);
       cache[name] = gltf.scene;
