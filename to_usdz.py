@@ -19,17 +19,14 @@ def convert(glb_path, usdz_path):
     looks = UsdGeom.Scope.Define(stage, "/Theatre/Looks")
 
     # any texture the glTF references has to travel inside the package
-    here = os.path.dirname(os.path.abspath(glb_path))
-    tex_src = os.path.join(here, "brick_diffuse.png")
-    tex_name = "brick_diffuse.png"
-    has_tex = os.path.exists(tex_src)
-    if has_tex:
-        shutil.copy(tex_src, os.path.join(work, tex_name))
+    written = {}          # material name -> texture filename inside the package
 
     made = {}
     for name, g in scene.geometry.items():
         safe = "".join(c if c.isalnum() else "_" for c in name)
-        mat_name = safe.split("_")[0]
+        gmat = getattr(g.visual, "material", None)
+        mat_name = "".join(c if c.isalnum() else "_" for c in
+                           (getattr(gmat, "name", None) or safe.split("_")[0]))
 
         # ---- material, once per palette entry ----
         if mat_name not in made:
@@ -48,7 +45,12 @@ def convert(glb_path, usdz_path):
                 sh.CreateInput("opacity", Sdf.ValueTypeNames.Float).Set(a)
 
             uv0 = getattr(g.visual, "uv", None)
-            if has_tex and uv0 is not None and len(uv0):
+            img = getattr(gmat, "baseColorTexture", None)
+            if img is not None and uv0 is not None and len(uv0):
+                tex_name = f"{mat_name}.png"
+                if mat_name not in written:
+                    img.convert("RGB").save(os.path.join(work, tex_name))
+                    written[mat_name] = tex_name
                 reader = UsdShade.Shader.Define(stage, mpath + "/stReader")
                 reader.CreateIdAttr("UsdPrimvarReader_float2")
                 reader.CreateInput("varname", Sdf.ValueTypeNames.Token).Set("st")
@@ -61,6 +63,9 @@ def convert(glb_path, usdz_path):
                     reader.ConnectableAPI(), "result")
                 tex.CreateOutput("rgb", Sdf.ValueTypeNames.Float3)
                 sh.GetInput("diffuseColor").ConnectToSource(tex.ConnectableAPI(), "rgb")
+                # a textured material's factor is a white tint in glTF; USD
+                # would otherwise multiply the image down to nothing
+                sh.GetInput("diffuseColor").GetAttr().Set(Gf.Vec3f(1, 1, 1))
 
             mat.CreateSurfaceOutput().ConnectToSource(sh.ConnectableAPI(), "surface")
             made[mat_name] = mat
@@ -85,7 +90,7 @@ def convert(glb_path, usdz_path):
                 "st", Sdf.ValueTypeNames.TexCoord2fArray, UsdGeom.Tokens.vertex)
             # glTF puts the origin top-left, USD bottom-left
             st.Set([Gf.Vec2f(float(a), float(1.0 - b)) for a, b in uv.tolist()])
-        UsdShade.MaterialBindingAPI(mesh).Bind(made[mat_name])
+        UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(made[mat_name])
 
     stage.GetRootLayer().Save()
     if os.path.exists(usdz_path):
