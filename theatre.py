@@ -109,6 +109,14 @@ def ambient(mesh, radius=1.7, k=56, floor=0.34):
     return np.clip(1.0 - w.sum(1) * damp, floor, 1.0)
 
 
+def ex(poly, depth):
+    """Extrude and guarantee outward-facing normals."""
+    m = extrude_polygon(poly, depth)
+    if m.volume < 0:
+        m.invert()
+    return m
+
+
 def T4(x=0.0, y=0.0, z=0.0): return translation_matrix([x, y, z])
 def RY(a): return rotation_matrix(a, [0, 1, 0])
 def RZ(a): return rotation_matrix(a, [0, 0, 1])
@@ -137,7 +145,7 @@ def flat(poly, thick, y_top):
     """Extrude a plan polygon (world x,z) downward from y_top."""
     p = Polygon([(x, -z) for x, z in poly.exterior.coords],
                 [[(x, -z) for x, z in h.coords] for h in poly.interiors])
-    m = extrude_polygon(p, thick)
+    m = ex(p, thick)
     m.apply_transform(concatenate_matrices(T4(0, y_top, 0), RX(-math.pi / 2)))
     return m
 
@@ -182,14 +190,13 @@ def build(state="1827", cut=False, hill=False):
         if door:
             holes.append([(-DOOR_W / 2, Y_MUS), (DOOR_W / 2, Y_MUS),
                           (DOOR_W / 2, Y_MUS + DOOR_H), (-DOOR_W / 2, Y_MUS + DOOR_H)])
-        w = extrude_polygon(
-            Polygon([(-HALF, y_bot), (HALF, y_bot), (HALF, Y_TOP), (-HALF, Y_TOP)], holes), T)
+        w = ex(Polygon([(-HALF, y_bot), (HALF, y_bot), (HALF, Y_TOP), (-HALF, Y_TOP)], holes), T)
         w.apply_transform(xf)
         # the inward face of a brick wall was plastered and whitewashed, as the
         # 1930s museum model of the interior shows
         out_dir = np.array({"front": (0, 0, 1), "rear": (0, 0, -1),
                             "left": (-1, 0, 0), "right": (1, 0, 0)}[name], float)
-        inward = w.face_normals @ out_dir > 0.7   # normals point out of the solid
+        inward = w.face_normals @ out_dir < -0.7
         if inward.any() and (~inward).any():
             add("plaster", name, w.submesh([np.where(inward)[0]], repair=False)[0])
             add("brick", name, w.submesh([np.where(~inward)[0]], repair=False)[0])
@@ -198,7 +205,7 @@ def build(state="1827", cut=False, hill=False):
 
         if blocked and name == "rear":
             for x, s in skip:
-                p = extrude_polygon(Polygon(lune(x, s)), 0.16)
+                p = ex(Polygon(lune(x, s)), 0.16)
                 p.apply_transform(concatenate_matrices(xf, T4(0, 0, T - 0.16)))
                 add("patch", name, p)
             d = bx(DOOR_W, DOOR_H, 0.16, 0, DOOR_H / 2, T - 0.16)
@@ -210,10 +217,10 @@ def build(state="1827", cut=False, hill=False):
                     continue
                 ring = Polygon(arc(x, s, WIN_R + 0.16, 0, math.pi)
                                + arc(x, s, WIN_R - 0.14, math.pi, 0))
-                r = extrude_polygon(ring, 0.30)
+                r = ex(ring, 0.30)
                 r.apply_transform(concatenate_matrices(xf, T4(0, 0, T - 0.08)))
                 add("trim", name, r)
-                g = extrude_polygon(Polygon(lune(x, s, WIN_R - 0.10)), 0.08)
+                g = ex(Polygon(lune(x, s, WIN_R - 0.10)), 0.08)
                 g.apply_transform(concatenate_matrices(xf, T4(0, 0, T - 0.34)))
                 add("glass", name, g)
                 pieces = [bx(WIN_R * 2 + 0.32, 0.26, 0.36, x, s - 0.10, T - 0.10)]
@@ -278,7 +285,7 @@ def build(state="1827", cut=False, hill=False):
         bw = 41.0 / bays
         for i in range(bays):
             cx = -20.5 + bw / 2 + i * bw
-            pr = extrude_polygon(Polygon([(-bw / 2, 0), (bw / 2, 0), (0, rh)]), 41.0)
+            pr = ex(Polygon([(-bw / 2, 0), (bw / 2, 0), (0, rh)]), 41.0)
             pr.apply_transform(T4(cx, Y_TOP, -20.5))
             add("glass" if i == bays // 2 else "roof", "roof", pr)
     else:
@@ -424,7 +431,7 @@ def build(state="1827", cut=False, hill=False):
                 RX(-math.pi / 2), RZ(-i * (math.pi * 2.4 / 20))))
             add("wood", "base", w)
         add("dark", "base", bx(3.2, 4.5, 0.26, -9.0, GRADE_R + 2.25, -HALF + 0.62))
-        fan = extrude_polygon(Polygon(
+        fan = ex(Polygon(
             [(9 + 1.55, GRADE_R + 4.6)] + arc(9, GRADE_R + 4.6, 1.55, 0, math.pi)
             + [(9 - 1.55, GRADE_R + 4.6)]), 0.10)
         fan.apply_transform(concatenate_matrices(
@@ -432,11 +439,11 @@ def build(state="1827", cut=False, hill=False):
         add("glass", "base", fan)
 
         # terrain only behind the retained faces, so the cutaway stays open
-        rear = extrude_polygon(Polygon([(-44, GRADE_R), (44, GRADE_R),
+        rear = ex(Polygon([(-44, GRADE_R), (44, GRADE_R),
                                         (44, -22), (-44, -22)]), 24.0)
         rear.apply_transform(T4(0, 0, -44))
         add("earth", "site", rear)
-        left = extrude_polygon(Polygon([(-HALF - 22, GRADE_F + 0.4), (HALF + 2, GRADE_R),
+        left = ex(Polygon([(-HALF - 22, GRADE_F + 0.4), (HALF + 2, GRADE_R),
                                         (HALF + 2, -22), (-HALF - 22, -22)]), 24.0)
         left.apply_transform(concatenate_matrices(T4(-44, 0, 0), RY(math.pi / 2)))
         add("earth", "site", left)

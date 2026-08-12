@@ -15,7 +15,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const INK = 0x101820;
 
-const V = 12;   // bump with the models to bust the browser cache
+const V = 13;   // bump with the models to bust the browser cache
 
 const VIEWS = {
   out:  { file: 'theatre.glb',      az:  38, el: 20, pad: 1.30, ground: true },

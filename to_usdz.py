@@ -1,18 +1,13 @@
 """GLB -> USDZ for AR Quick Look.  Y-up, metres, UsdPreviewSurface materials.
 
-Textures are deliberately NOT carried into the USDZ.  The model's UVs are
-box-projected and run well outside 0..1 (about -6.3 to 7.0), which needs the
-texture to wrap.  AR Quick Look appears to clamp instead: the flat wall faces
-and the window reveals then sample different edge pixels of the brick image,
-so the walls render mortar-pale while the reveals stay brick-red -- the
-building looks turned inside out.  Each material is given the average colour
-of its own texture instead, which renders identically at AR viewing distance
-and cannot fail.  The web viewer still uses the full texture from the GLB.
+Textures are carried through.  A textured material also gets the average
+colour of its own image authored as the fallback, so if a renderer fails to
+resolve the texture the walls still read as brick rather than white.
 
-Set USE_TEXTURES = True to try the textured path again on a real device.
+Set USE_TEXTURES = False to ship flat colours instead.
 """
 
-USE_TEXTURES = False
+USE_TEXTURES = True
 import os, sys, shutil, tempfile
 import numpy as np
 import trimesh
