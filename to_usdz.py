@@ -1,4 +1,18 @@
-"""GLB -> USDZ for AR Quick Look.  Y-up, metres, UsdPreviewSurface materials."""
+"""GLB -> USDZ for AR Quick Look.  Y-up, metres, UsdPreviewSurface materials.
+
+Textures are deliberately NOT carried into the USDZ.  The model's UVs are
+box-projected and run well outside 0..1 (about -6.3 to 7.0), which needs the
+texture to wrap.  AR Quick Look appears to clamp instead: the flat wall faces
+and the window reveals then sample different edge pixels of the brick image,
+so the walls render mortar-pale while the reveals stay brick-red -- the
+building looks turned inside out.  Each material is given the average colour
+of its own texture instead, which renders identically at AR viewing distance
+and cannot fail.  The web viewer still uses the full texture from the GLB.
+
+Set USE_TEXTURES = True to try the textured path again on a real device.
+"""
+
+USE_TEXTURES = False
 import os, sys, shutil, tempfile
 import numpy as np
 import trimesh
@@ -46,7 +60,14 @@ def convert(glb_path, usdz_path):
 
             uv0 = getattr(g.visual, "uv", None)
             img = getattr(gmat, "baseColorTexture", None)
-            if img is not None and uv0 is not None and len(uv0):
+
+            if img is not None and not USE_TEXTURES:
+                # flat stand-in: the image's own average colour
+                px = np.asarray(img.convert("RGB"), dtype=float).reshape(-1, 3).mean(0) / 255.0
+                sh.GetInput("diffuseColor").GetAttr().Set(
+                    Gf.Vec3f(float(px[0]), float(px[1]), float(px[2])))
+
+            if USE_TEXTURES and img is not None and uv0 is not None and len(uv0):
                 tex_name = f"{mat_name}.png"
                 if mat_name not in written:
                     img.convert("RGB").save(os.path.join(work, tex_name))
@@ -63,9 +84,15 @@ def convert(glb_path, usdz_path):
                     reader.ConnectableAPI(), "result")
                 tex.CreateOutput("rgb", Sdf.ValueTypeNames.Float3)
                 sh.GetInput("diffuseColor").ConnectToSource(tex.ConnectableAPI(), "rgb")
-                # a textured material's factor is a white tint in glTF; USD
-                # would otherwise multiply the image down to nothing
-                sh.GetInput("diffuseColor").GetAttr().Set(Gf.Vec3f(1, 1, 1))
+                # A textured glTF material carries a neutral white factor,
+                # because the image supplies the colour.  Authoring that white
+                # as the USD fallback means any renderer that fails to resolve
+                # the texture draws the walls pure white -- which reads as the
+                # plastered interior turned outward.  Author the image's own
+                # average colour instead, so failure degrades to brick.
+                px = np.asarray(img.convert("RGB"), dtype=float).reshape(-1, 3).mean(0) / 255.0
+                sh.GetInput("diffuseColor").GetAttr().Set(
+                    Gf.Vec3f(float(px[0]), float(px[1]), float(px[2])))
 
             mat.CreateSurfaceOutput().ConnectToSource(sh.ConnectableAPI(), "surface")
             made[mat_name] = mat
