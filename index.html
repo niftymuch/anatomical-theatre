@@ -71,8 +71,8 @@
 </style>
 
 <model-viewer id="mv"
-  src="theatre.glb?v=8"
-  ios-src="theatre.usdz?v=8"
+  src="theatre.glb?v=9"
+  ios-src="theatre.usdz?v=9"
   alt="Thomas Jefferson's Anatomical Theatre, a 44-foot square brick building of two storeys with half-round windows and a railed parapet."
   ar ar-modes="scene-viewer webxr quick-look" ar-scale="auto" ar-placement="floor"
   camera-controls touch-action="pan-y" interaction-prompt="none"
@@ -141,7 +141,7 @@
   // everything else so the only thing to do is start it.
   const arOnly = new URLSearchParams(location.search).has('ar');
 
-  const V = 8;                    // bump with the models to bust caches
+  const V = 9;                    // bump with the models to bust caches
   let mode = 'out';
   const viewer = (await import('./viewer.js')).start(document.getElementById('three'));
   viewer.setActive(true);
